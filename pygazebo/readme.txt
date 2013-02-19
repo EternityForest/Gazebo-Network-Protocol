@@ -48,7 +48,7 @@ The NetworkParameter object
 Represents one parameter
 
 ### NetworkParameter.info()
-prints an info string.
+prints a descriptive info string.
 
 #### Example
 	temp.info() #Get some info about the param. This was stored on the slave in a much more compact format

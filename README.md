@@ -14,7 +14,6 @@ rather than purchase a number from some authority.
 The code currently comiles to under 9k on the arduino leonardo. All the hardware dependant stuff is in one small file so
 it is very easy to port.
 
-
 Dependancies
 ------------
 Python(tested on 3.xx, may work in 2.6+)
