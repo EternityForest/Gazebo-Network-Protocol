@@ -18,5 +18,12 @@ it is very easy to port.
 Dependancies
 ------------
 Python(tested on 3.xx, may work in 2.6+)
+
 crcmod
+
 pyserial
+
+Creating Slave Devices
+----------------------
+Look at the example arduino sketch, particularly networkinterface.c and machine.cpp.
+The implementation was designed so that those are the only files that you need to modify.
