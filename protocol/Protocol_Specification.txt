@@ -5,17 +5,17 @@ Creation-Date: 2013-01-01T13:06:41-08:00
 ====== Gazebo Protocol Specification ======
 Created Tuesday 01 January 2013
 
-© 2013 Daniel Black.
-Version 0.1
-CC-BY-SA
+(c) 2013 Daniel Black.
+Version 0.11
+This work is licensed under a Creative Commons Attribution 3.0 Unported License.
 
 
 ===== Introduction and Statement of Purpose =====
-In many electronics applications there is a need for devices to communicate with each other. Often this is accomplished via a proprietary application layer running on a semi-standard link layer. Often much manual setup is required, e.g. entering device addresses, writing custom drivers, etc. Another problem is that devices are often incompatible with each other and cannot share a physical layer, or require certain physcal data lines to be exclusive to one device.
+In many electronics applications there is a need for devices to communicate with each other. Often this is accomplished via a proprietary application layer running on a semi-standard link layer. Often much manual setup is required, e.g. entering device addresses, writing custom drivers, etc. Another problem is that devices are often incompatible with each other and cannot share a physical layer, or require certain physical data lines to be exclusive to one device.
 
 Gazebo aims to correct these problems by defining a protocol that runs on common, existing physical layers, does not require the purchase of any developer license or unique codes, allows device to share a common bus, allows devices to be discovered with manual addressing, and allows devices to be self-documenting.
 
-Gazebo does not require custom hardware nor does it require excessive CPU resources. It runs over common RS485, USB,or TTL interfaces and the software is freely available. Gazbo was designed not to require devices to have any user interface(DIP switch, etc) at all, an important concern for small sensors and the like.
+Gazebo does not require custom hardware nor does it require excessive CPU resources. It runs over common RS485, USB,or TTL interfaces and the software is freely available. Gazebo was designed not to require devices to have any user interface(DIP switch, etc) at all, an important concern for small sensors and the like.
 
 Gazebo has native support for things like units of measure, data types (Including compound data types) remote function calls, nonvolatile configurations, and defines ways to ask questions about devices. Without human intervention the master can enumerate the devices on the bus, discover their capabilities, and issue commands.
 
@@ -27,9 +27,9 @@ Parameters are not limited to simple variables, as both writes and reads may hav
 
 The concept of Objects is supported in a lightweight manner through Grouping. Parameters may be grouped together, and every group is an instance of a group class. In effect this allows anyone to effectively extend the standard by publishing an API as a group class and giving that class a unique name.
 
-A side effect of this is that we can do away with “device classes” and the like, because instead of looking for devices of a specific class, we can instead look for devices that implement a specific class.
+A side effect of this is that we can do away with ."device classes" and the like, because instead of looking for devices of a specific class, we can instead look for devices that implement a specific class.
 
-Gazebo specifies native support for Error responses. While Gazebo was not designed for mission-critical systems, reliability was a large concer in the design of the protocol. Small timing errors in gazebo data will not affect operation, nor is it possible for a string of bytes from noise to lock up the protocol decoder state. CRCs are used on all packets except for one-byte acknowledgements and boolean responses, and data is to some degree self-synchronzing due to the use of packet start codes and length fields. In addition to CRCs, runtime validation is performed and attemptng to write the wrong number of bytes to a parameter, perform an operation on a nonexistantn parameter, or perform an invalid operation will result in an error. In addition, application code may perform additional validation on the data and return a standard error packet if anything is amiss.
+Gazebo specifies native support for Error responses. While Gazebo was not designed for mission-critical systems, reliability was a large concern in the design of the protocol. Small timing errors in gazebo data will not affect operation, nor is it possible for a string of bytes from noise to lock up the protocol decoder state. CRCs are used on all packets except for one-byte acknowledgments and Boolean responses, and data is to some degree self-synchronizing due to the use of packet start codes and length fields. In addition to CRCs, runtime validation is performed and attempting to write the wrong number of bytes to a parameter, perform an operation on a nonexistent parameter, or perform an invalid operation will result in an error. In addition, application code may perform additional validation on the data and return a standard error packet if anything is amiss.
 
 For these reasons, it is believed that Gazebo is a viable protocol for use in the fields of lighting control, process automation for non-critical equipment, entertainment, device configuration, scientific monitoring, and general embedded communication.
 
@@ -41,18 +41,20 @@ For these reasons, it is believed that Gazebo is a viable protocol for use in th
 The protocol is to be considered as defined by this document and not by any reference implementation.
 
 ==== Assumed Knowledge ====
-It is assumed that the reader is familiar with basic electronics and computer science, and with common standards. This docment will attempt not to reference anything that could not be researched with a simple internet search.
+It is assumed that the reader is familiar with basic electronics and computer science, and with common standards. This document will attempt not to reference anything that could not be researched with a simple internet search.
 
 ==== Build Process ====
-The document is editied as a Wiki Markup text file. It is then converted to various presentation formats. Only formatting and minor additions like page numbers and tables of contents are made after the Wiki Markup stage. In the case of any conflict, the Wiki Markup Source should be considered the definitive version.
+The document is edited as a Wiki Markup text file. It is then converted to various presentation formats. Only formatting and minor additions like page numbers and tables of contents are made after the Wiki Markup stage. In the case of any conflict, the Wiki Markup Source should be considered the definitive version.
 
 ==== Conventions Used ====
-All numbers are to be interpreted as decimal unless preceded by '0x' in which case they are hex. Section numbering is not used in light of the modern trend towards e-book reading and searchability. Sections numbers are only used to express numbered lists where the number is important. References to other sections in this document are italicised.
+All numbers are to be interpreted as decimal unless preceded by '0x' in which case they are hex. Section numbering is not used in light of the modern trend towards e-book reading and searchability. Sections numbers are only used to express numbered lists where the number is important. References to other sections in this document are italicized.
 
 ==== Version Numbers ====
 
 === Major ===
 The major revision number indicates a stable release this version is based on. A major release is made when the current specification is stable. Every Major release will attempt to be backwards compatible with every previous Major release. You should design devices to comply with the most recent major release unless a) the device has user-upgradable firmware, or b) the device does not have the hardware resources to support the current version. In that case a previous major version should be used.
+
+Note that every version before V1.0 should be considered an experimental version, and backward compatibility may not exist. with pre-1.0 versions.
 
 === Minor ===
 The minor revision number indicates a change that modifies a feature. Features added since the last Major revision should be considered unstable.
@@ -70,7 +72,7 @@ The protocol is master-slave, with all transactions being initiated by the maste
 ==== Addressing ====
 Slaves all have a fixed 128 bit UUID. The master may conduct a binary search algorithm to find all devices,  and then assign temporary 16 bit addresses to nodes to eliminate the overhead of such a large address space. 
 
-This binary search period is the only time when there is a possibility of nodes colliding, and collisions are acceptable because the presence of any data at all is what the master looks for, even if it contains framing errors.This does however depend on the master being able to detect bytes even if framing errors are present. However this appears to be the standard behavior.
+This binary search period is the only time when there is a possibility of nodes colliding, and collisions are acceptable because the presence of any data at all is what the master looks for, even if it contains framing errors. This does however depend on the master being able to detect bytes even if framing errors are present. However this appears to be the standard behavior.
 
 UUIDs are not required to conform to any standard and may simply be random numbers. Care should be taken to ensure that UUIDs are generated with sufficient entropy.
 
@@ -103,13 +105,13 @@ Such groups should have Class names of the form "<Base64UUID>_<Whatever>". Well 
 
 Group Class names may not begin with the asterisk as that is reserved. Groups intended for one-off use(not intended as a public standard) are not required to have UUIDs or organization names.
 
-Allowing unique user-defined group classes allows, for example, a maker of challenge-response tokens to publish a standard for the "kr97bc5Lm7BBnjkiHjr_Token". Now anyone can make a challenge-response token that is compatible with all the existing devices. Someone could make an upgraded version, say, that also serves as a digital signature device. They could implement the digital signature device as a separate group, and have backwards compatibilty.
+Allowing unique user-defined group classes allows, for example, a maker of challenge-response tokens to publish a standard for the "kr97bc5Lm7BBnjkiHjr_Token". Now anyone can make a challenge-response token that is compatible with all the existing devices. Someone could make an upgraded version, say, that also serves as a digital signature device. They could implement the digital signature device as a separate group, and have backwards compatibility.
 
 ==== Profiles ====
 Slave devices do not have "device profiles" as a device profile can easily be replaced with a group class. Group classes may be more flexible in that they allow a device to implement multiple inheritance simple by implementing two distinct group classes without resorting to ideas of multiple endpoints.
 
 ==== Multicasting ====
-Multicast adressing is an integral part of the protocol, and at any time the master may command a device to join a group or quit a group. Group addresses are taken from the same address space as any other address, and slaves must respond to multicast requests exactly as the would direct requests. All slaves must be able to listen to at least 4 groups addresses.
+Multicast addressing is an integral part of the protocol, and at any time the master may command a device to join a group or quit a group. Group addresses are taken from the same address space as any other address, and slaves must respond to multicast requests exactly as the would direct requests. All slaves must be able to listen to at least 4 groups addresses.
 
 ==== Error Reporting ====
 A slave may respond to any request with an Slave Error Packet.
@@ -117,21 +119,21 @@ Slave Error Packets contain a one byte error code, which is to be interpreted as
 Slave error codes may also contain an arbitrary null-terminated UTF-8 string of additional information.
 
 Slaves should implement as many error checks as is practical.
-Slaves that do not have the resources to return specific errors can return errror 0(generic error) in place of any other error message, but this is to be avoided where possible.
+Slaves that do not have the resources to return specific errors can return error 0(generic error) in place of any other error message, but this is to be avoided where possible.
 
 ==== Information Broadcasting ====
 Information Broadcasting is a way to send information to a group of slaves, all slaves, or one slave without knowing anything about the slaves an without depending on the numbering of their parameters.
 
-Every information Broadcast contains a Key, which is an 8 character description of the broadcast, such as Year for the number o the current year. The rest of the information broadcast contaings up to 240 characters of data.
+Every information Broadcast contains a Key, which is an 8 character description of the broadcast, such as Year for the number o the current year. The rest of the information broadcast contains up to 240 characters of data.
 
-The purpose of this is to have a standard way of sending data to many diferent slaves at once, even if they have different numbering for their parameters. Any slave may ignore an information broadcast, and since they are standard packets, you can send them to one slave, a group of slaves, or all slaves because of Gazebo's flexible addressing.
+The purpose of this is to have a standard way of sending data to many different slaves at once, even if they have different numbering for their parameters. Any slave may ignore an information broadcast, and since they are standard packets, you can send them to one slave, a group of slaves, or all slaves because of Gazebo's flexible addressing.
 
 ==== Scalability ====
-Gazebo provides the main protocol, which is already very easy to implement, and the Small Gazebo subset which does not even requre devices be able to communicate back. Small Gazebo only uses the reserved address range 0 256-512, and the broadcast address.
+Gazebo provides the main protocol, which is already very easy to implement, and the Small Gazebo subset which does not even require devices be able to communicate back. Small Gazebo only uses the reserved address range 0 256-512, and the broadcast address.
 In small gazebo, all commands except for writing data to a parameter and reading from a parameter are optional.
 
 ==== Sanity Checking ====
-A central theme in Gazebo is sanity checking. Error messages are provided not only for protocol level errors like writing to an invalid parameter, but also general Application Level errors, such as writing an invalid sequence to a byte array that must conform to a format. Device developers are encouraged to sanity check all incoming data. Not only does this increase reliability but it makes development easier, becase programmers can see exactly what commands are invalid and why.
+A central theme in Gazebo is sanity checking. Error messages are provided not only for protocol level errors like writing to an invalid parameter, but also general Application Level errors, such as writing an invalid sequence to a byte array that must conform to a format. Device developers are encouraged to sanity check all incoming data. Not only does this increase reliability but it makes development easier, because programmers can see exactly what commands are invalid and why.
 
 ==== Endianness ====
 All data with the exception of the CRC is always sent little-endian, because it is the more common transmission.
@@ -141,21 +143,21 @@ The CRC is always sent big-endian.
 The protocol defines several possible physical layers. Each physical layer defines connectors, voltage levels, and power may be carried alongside in all of them. All three layers are intercompatible with very simple adapters.
 
 ==== Gazebo-USB ====
-A point-to-point version of Gazebo tunneled over a virtual COM port connection using the standard usb-CDC class. One advantage of Gazebo-USB is that from the software's point of view it is identical to talking to a RS485 Gazebo device through a serial adapter. The device should presnt itself as 8-N-1 Serial, and baud rate commands should be ignored as usb serial has no baud rate in the traditional sense.
+A point-to-point version of Gazebo tunneled over a virtual COM port connection using the standard usb-CDC class. One advantage of Gazebo-USB is that from the software's point of view it is identical to talking to a RS485 Gazebo device through a serial adapter. The device should present itself as 8-N-1 Serial, and baud rate commands should be ignored as USB serial has no baud rate in the traditional sense.
 
 To avoid failure, any software that acts as a master on a computer that is no
 
 ==== Gazebo-RS485 ====
-8-N-1 RS485 Idle high non-inverted data carried along with power using RJ-11 connectors with pin order GND,PWR,A,B looking into th male with tab down. The voltage is 9-22V and all devices must handle a 24V overvoltage. All devices must hot plug to 22V through 250uH+0.5Ohms and 1.2mH+7ohms without damage. Devices requiring more than ~500mW should have an external power connector, which //should// take a voltage in the range of 7-30V but may take any voltage. Where possible cables should be made using 22 Gauge copper stranded wire, preferrably twisted pair. Devices should use a tranciever with the slowest slew rate that will still support their highest baud rate. The RS485 bus should use failsafe pullups at one terminator.
+8-N-1 RS485 Idle high non-inverted data carried along with power using RJ-11 connectors with pin order GND,PWR,A,B looking into the male with tab down. The voltage is 9-22V and all devices must handle a 24V over-voltage. All devices must hot plug to 22V through 250uH+0.5Ohms and 1.2mH+7ohms without damage. Devices requiring more than ~500mW should have an external power connector, which //should// take a voltage in the range of 7-30V but may take any voltage. Where possible cables should be made using 22 Gauge copper stranded wire, preferably twisted pair. Devices should use a transceiver with the slowest slew rate that will still support their highest baud rate. The RS485 bus should use failsafe pullups at one terminator.
 
 ==== Gazebo-TTL ====
 8-N-1 Idle high non-inverted data carried over a shared TTL wire pulled high to 5V via no less than 1k via any connector. Should power be carried alongside the voltage should be 5V. Devices s
 
 ===== Packet Format =====
 The protocol defines two types of packet, //Standard// and //Short//.
-A Standard Packet complies with the below format while a short packet is simply an arbitrary byte sequence thatmay include ACK, and ascii 0 to F.
+A Standard Packet complies with the below format while a short packet is simply an arbitrary byte sequence that may include ACK, and ASCII 0 to F.
 
-Packets are described in terms of bytes transmitted over an arbitrar medium.
+Packets are described in terms of bytes transmitted over an arbitrary medium.
 
 ==== Standard Packets are to be of the form ====
 
@@ -181,7 +183,7 @@ This is simple a fixed 0x55 used to indicate a packet start.
 
 === Packet-Type ===
 An index into a list of standard packet-types that is listed in the tables.
-A node recieving a packet with a type that it does not understand should ignore it.
+A node receiving a packet with a type that it does not understand should ignore it.
 
 === Address ===
 A 16 bit destination address. The first 4096 addresses are reserved however any other address may be assigned to a device or used as a group address. Address 1 is reserved for the master and address 0 is reserved for ALL slaves.
@@ -279,11 +281,11 @@ Headings are preceded by their Packet Type codes, specified in decimal.
 (Required for all slaves to handle)
 
 == Payload ==
-[16 bytes UUID] [2 Bytes network address] [16 Bytes UUID Bitmask] [2 Bytes Network Address bitmask]
+[16 bytes UUID] [2 Bytes network address] [16 Bytes UUID bitmask] [2 Bytes Network Address bit mask]
 
 
 == Description ==
-Slaves are required to respond with a slave presence declaration packet if the bit pattern matches theirs. A zero in any bitmask bit designates a "Don't Care' bit allowing for binary search trees over all nodes or only those nodes that have not been assigned network IDs yet, avoiding use of recursion or excessive ram in the enumeration routine.
+Slaves are required to respond with a slave presence declaration packet if the bit pattern matches theirs. A zero in any bit mask bit designates a "Don't Care' bit allowing for binary search trees over all nodes or only those nodes that have not been assigned network IDs yet, avoiding use of recursion or excessive ram in the enumeration routine.
 
  By requesting only nodes that have not been assigned a network address(by setting 0 as the required address) You always get a new slave each time you run the search tree and can loop through slaves easily without using recursion of other complex algorithms(at least complex by embedded standards)
 
@@ -306,8 +308,8 @@ Instructs the slave with a UUID that matches the UUID in the packet to set its t
 [1 byte page number]
 
 == Description ==
-Slaves must return a string of data up to 248 bytes long with starting position is S=(248*PageNumber) of the Slave Description String.
-The slave description string  must be null termnated and the last page should not contain data after the null.
+Slaves must return a string of data up to 248 bytes long with starting position is S=(248*Page Number) of the Slave Description String.
+The slave description string  must be null terminated and the last page should not contain data after the null.
 The format s UTF-8. For example:
 Page 1 would by bytes 0-247
 Page 2 would be bytes 248-496
@@ -358,8 +360,8 @@ Slave must respond with a Slave Acknowledge message, or with the appropriate err
 [1 Byte parameter number] [1-239 bytes Data]
 
 == Description ==
-Command to write Data to the selected Parameter without requesting an acknowledgement.
-Slaves must NOT respond with acknowledgement. In case of errors slaves must still remain silent.
+Command to write Data to the selected Parameter without requesting an acknowledgment.
+Slaves must NOT respond with acknowledgment. In case of errors slaves must still remain silent.
 
 
 === 14: Baud Rate Set Command ===
@@ -385,7 +387,7 @@ A standard way for the master to broadcast short pieces of information, such as 
 
 Information that is global to the network such as the current time should only be sent using an Information Broadcast Message. Slaves must never respond to an information broadcast message.
 
-Even though this is called a "Broadcast", slaves must ignore Information Broadacast Messages not addressed to them, a group they are a member of, or the global broadcast address. This is to ensure that it is possible to broadcast information to only a subset of slaves.
+Even though this is called a "Broadcast", slaves must ignore Information Broadcast Messages not addressed to them, a group they are a member of, or the global broadcast address. This is to ensure that it is possible to broadcast information to only a subset of slaves.
 
 Non-standard information broadcast keys(those not defined in this standard in //Standard Information Broadcast Keys//) must not use all capital names.
 		
@@ -424,7 +426,7 @@ If the slave is not a member of that group, return the acknowledge anyway.
 
 == Description ==
 This will cause the slave to save all parameters that are marked with the 'n' flag to permanent storage.
-The current value will become the new default at power up.  Slaves must respond with acknowledgement or the appropriate error.
+The current value will become the new default at power up.  Slaves must respond with acknowledgment or the appropriate error.
 
 This allows for a standardized way to implement configurable devices such as electronic speed controllers and motion detector sensitivity thresholds. Master software should require confirmation such as "Are you sure you want to make the current settings the new default?" before continuing.
 
@@ -490,7 +492,7 @@ e.g. Attempting to write an invalid value to a byte array that must conform to a
 
 ==== 3: Insufficient Power ====
 The requested operation would exceed available electrical power.
-e.g. Attempting to trigger a solenoid coil when only the limited power from the network bus is availible.
+e.g. Attempting to trigger a solenoid coil when only the limited power from the network bus is available.
 
 ==== 4: Not Available in this Mode ====
 The slave is not currently configured for the requested operations.
@@ -510,7 +512,7 @@ The write request tried to write more data than fits in the selected variable.
 The write request tried to write less data than would fit in the selected variable.
 
 ==== 9:Too Many Groups ====
-There was a request to join a group but there is no more space to store group adresses. Quit at least one group and retry.
+There was a request to join a group but there is no more space to store group addresses. Quit at least one group and retry.
 
 
 ===== Slave Description String =====
@@ -544,7 +546,7 @@ For devices that support user settable names.
 ==== Number of parameters ====
 What it says on the tin, in decimal of course.
 
-==== Maximum Baus Rate ====
+==== Maximum Baud Rate ====
 A decimal or hexadecimal prefaced with 0x number in units of baud. ignored for USB only devices.
 
 ==== Description ====
@@ -577,7 +579,7 @@ The name of the parameter. May only contain a-z A-Z and the underscore. Two para
 
 
 ==== Type ====
-Equivalent to concepts of type in programming languages, this field fully specifies the range of lengths the parameter may take on. The type is expressed as a string, optionnally followed by either [len] or [lenmin:lenmax] to denote an array. Multidimensional arrays are allowed and considered arrays of arrays.
+Equivalent to concepts of type in programming languages, this field fully specifies the range of lengths the parameter may take on. The type is expressed as a string, optionally followed by either [len] or [lenmin:lenmax] to denote an array. Multidimensional arrays are allowed and considered arrays of arrays.
 
 ==== Interpretation ====
 
@@ -594,11 +596,11 @@ Only the last parameter may be a variable array.
 
 ==== Flags ====
 
-This field is a set of one character flags describing the parameter's propereties. The list of valid flags is described in //Valid Flags//.
+This field is a set of one character flags describing the parameter's properties. The list of valid flags is described in //Valid Flags//.
 
 ==== Group Role ====
 
-This describes the //Role //that an individual parameter plays in a group. An example would be ''Derivative ''for a varible to control the derivative gain in a group representing a PID control loop. May be blank for ungrouped parameters. A group may not have multiple variables playing the same role.
+This describes the //Role //that an individual parameter plays in a group. An example would be ''Derivative ''for a variable to control the derivative gain in a group representing a PID control loop. May be blank for ungrouped parameters. A group may not have multiple variables playing the same role.
 
 ==== Group Name ====
 This is the name of the group, if any, that the variable is a part of. A group is analogous to an object instance. A device may not have two groups with the same name. May be blank for ungrouped parameters.
@@ -607,7 +609,7 @@ This is the name of the group, if any, that the variable is a part of. A group i
 The class of group that the parameter is in. All parameters with the same group name must have the same group class. Anyone can define a group class, so to avoid conflict between unrelated manufactures the company or individual name may be prepended to the group name, or alternately a UUID in base64 may be prepended. May be blank for ungrouped parameters.
 Group classes beginning with an asterisk "*" are reserved for "official" standard group classes.
 
-==== Decription ====
+==== Description ====
 A plain text description, in quotes, with all quotes escaped by a backslash and newlines converted to \n. May be UTF-8 and may be formatted as reStructuredText.
 
 ==== Key-Value Object ====
@@ -790,7 +792,7 @@ The local timezone as 8 bit unsigned
 The current day of the week as 8 bit unsigned.
 
 ==== RANDOM ====
-An arbitrary amount of random data transmitted by the master. This is not intended as an exlusive source of entropy but is rather intended to be combined with some fixed or variable entropy present on the slave. The intent is to allow a simpler hash or combining function than would be needed to use the time as a random seed. You should NOT use this as a seed for generatng the UUIDs on first power up because of the possibilty of two deviced needing a UUID at once.
+An arbitrary amount of random data transmitted by the master. This is not intended as an exclusive source of entropy but is rather intended to be combined with some fixed or variable entropy present on the slave. The intent is to allow a simpler hash or combining function than would be needed to use the time as a random seed. You should NOT use this as a seed for generating the UUIDs on first power up because of the possibility of two devices needing a UUID at once.
 	
 
 ==== mKELVIN ====
@@ -810,7 +812,7 @@ An ASCII codeword used to arm or disarm critical equipment.
 
 ===== Additional Attributes =====
 
-These may be applied to expose more information about the pararmeter.
+These may be applied to expose more information about the parameter.
 
 ==== *qlen ====
 Applied to a queue indicates length in bytes
@@ -826,7 +828,7 @@ A number indicating the minimum value a numeric parameter may be set to.
 
 ===== Rate Format Strings =====
 A rate format string is a number followed by one of ''us,ms,s,m,h,Hz,KHz, or MHz.''
-It simply indicates a maximum repitition rate in a flexible way.
+It simply indicates a maximum repetition rate in a flexible way.
 
 ===== Naming of Interpretations =====
 
@@ -836,7 +838,7 @@ To increase compatibility and decrease conflict, the following rules should be u
 
  Non-SI units should never be abbreviated except as listed below. SI capitalization rules should be followed. 
 
-**In addition to the SI units,** the litre may be used with abbreviation L and the degree may be used with abbriviation deg,  Any other unit used should be spelled in full.
+**In addition to the SI units,** the liter may be used with abbreviation L and the degree may be used with abbreviation deg,  Any other unit used should be spelled in full.
 
 SI prefixes that are not powers of 1000(H,h,D,d) should be avoided.
 SI prefixes should //never// be used to refer to the powers of two(e.g. Kilo used to mean 1024), Instead the binary prefixes(Ki,Mi,Gi,Ti,etc) should be used.
@@ -844,7 +846,7 @@ SI prefixes should //never// be used to refer to the powers of two(e.g. Kilo use
 Various non-metric customary units such as ounces, pounds, and feet should be avoided when possible.
 
 Compound units should always be created with the forward slash and caret
-to denote exponantiaton e.g. ''m/s^2'' or ''kg/m^3''. 
+to denote exponentiation e.g. ''m/s^2'' or ''kg/m^3''. 
 
 Interpretation may also be used to define custom types. The name "unit" was purposefully avoided to allow complex named data structures. An example of this would be "WaveForm" for a DDS function generator, or "8/16kAudioStream" for a buffered 8 bit audio stream. 
 
@@ -868,17 +870,17 @@ The unit "counts" should be used to count events.
 ===== Reliability Concerns =====
 
 Gazebo was never designed to be used in life safety, military, aerospace, medical, or similar applications.
-While Gazebo was designed to be highly reliable, implementors must use the protocol entirely at their own risk.
+While Gazebo was designed to be highly reliable, implementers must use the protocol entirely at their own risk.
 
 ==== Multiple Baud Rates ====
 The use of multiple baud rates on the bus could cause the device running at the lower baud rate to see an 0x55 when none was sent. Should random line noise or higher bad rate transmissions cause a device to see a valid packet type, preamble, address, data length, and data, undefined operation may result. This is unlikely to occur due to multiple layers of integrity checking, however only a single baud rate should be used if reliability is important.
 
-==== Acknowledgement ====
-The use of a one-byte acknowledgement seqence creates the problem that random line noise could coincedentally contain the ACK character and coincedentally appear within the timeout just after the master sends a Write Request, causing the master to think the command was successful even if it was not. Even though the chances of this occuring are low, very important write operations like bootloaders should use some form of readback validation rather than depending on the built in acknowledgement features.
+==== Acknowledgment ====
+The use of a one-byte acknowledgment sequence creates the problem that random line noise could coincidentally contain the ACK character and coincidentally appear within the timeout just after the master sends a Write Request, causing the master to think the command was successful even if it was not. Even though the chances of this occurring are low, very important write operations like bootloaders should use some form of readback validation rather than depending on the built in acknowledgment features.
 
 
 ===== Modbus Compatibility =====
-The use of modbus devices on the same bus is possible if 0x00, 0x55, ascii ACK, and ascii zero through uppercase F are not used as modbus adresses. However, modbus transmissions may create similar situations described in //Reliability Concerns:Multiple Baud Rates.//
+The use of modbus devices on the same bus is possible if 0x00, 0x55, ASCII ACK, and ASCII zero through uppercase F are not used as modbus addresses. However, modbus transmissions may create similar situations described in //Reliability Concerns:Multiple Baud Rates.//
 
 
 ===== Labeling =====
@@ -893,18 +895,18 @@ Devices should be marked with their maximum power consumption.
 ===== Naming Conventions =====
 * Devices with physical I/O pins or connection should organize their pins into ports of 8.
 * Every port should be assigned a letter as the common MCU convention.
-* Nonexistant pins within a port are allowed to allow 1 to 1 mapping of mcu pins to logical ports.
+* Nonexistent pins within a port are allowed to allow 1 to 1 mapping of MCU pins to logical ports.
 
 ===== Device Documentation Conventions =====
 
 ==== Specifying Required Bandwidth ====
-To specify the amount of bandwidth requred by the feature, one shoud specify the number of actual bits transferred after accounting for start and stop bits, and network overhead bytes. One should also always specify at what polling rate the data  is valid for. For example, a light switch might say: 
+To specify the amount of bandwidth required by the feature, one should specify the number of actual bits transferred after accounting for start and stop bits, and network overhead bytes. One should also always specify at what polling rate the data  is valid for. For example, a light switch might say: 
 
 **On/Off switch function:**
 **Bandwidth: 400 Baud@5Hz polling**
 
 ==== Identifying Devices ====
-When there is a need to present an identifer for a device, Base64 wth the padding characters removed should be used rather than the traditional UUID notation.
+When there is a need to present an identifier for a device, Base64 with the padding characters removed should be used rather than the traditional UUID notation.
 
 
 ===== Design Patterns and Solutions =====
@@ -915,23 +917,23 @@ These are suggestions, and not requirements for compliant devices.
 Use a Position parameter and a Data parameter. When you read or write the Data, you actually get the 0:248 bytes after the pointer position. For write-only arrays you can also use a byte array where the first byte is the index. Or you can use a read with arguments interface.
 
 ==== User Interfaces ====
-Avoid directly reading the state of momentary switches. Instead, you can define a rolling count of button presses, or you can define a buffer of bytes for a keyboard. When you read it you get all keys pressed since you last read from it. For buttons that require accurate timing you can use a buffer of timestamps recording the miliseconds part of the current time at each press. Synchronize all devices using Information Broadcast Messages. For switches, knobs, toggles, and sliders, you should just directly read their state.
+Avoid directly reading the state of momentary switches. Instead, you can define a rolling count of button presses, or you can define a buffer of bytes for a keyboard. When you read it you get all keys pressed since you last read from it. For buttons that require accurate timing you can use a buffer of timestamps recording the milliseconds part of the current time at each press. Synchronize all devices using Information Broadcast Messages. For switches, knobs, toggles, and sliders, you should just directly read their state.
 
 ==== Measurements that require time ====
-For measurements that require time and/or energy to take, such as an ultrasonic distance reading, you can either take the measurment continously and return the latest when polled, or have a separate begin measu/rement parameter.
+For measurements that require time and/or energy to take, such as an ultrasonic distance reading, you can either take the measurement continuously and return the latest when polled, or have a separate begin measurement parameter.
 
 ==== Energy Saving ====
 Things that require energy should always be able to be turned off in software.
-Attempting to read from a disabled sensor should always return error 4 Not Availible in This Mode.
+Attempting to read from a disabled sensor should always return error 4 Not Available in This Mode.
 
 ==== General Purpose I/O modules ====
 Each "Special Function" should have it's own group. Each special function group should have a group role called ENABLE. When ENABLE is 0, we can use the pin as a normal digital I/O. Otherwise the special function takes control. Each pin should be able to be accessed as an individual parameter. If the device is intended to be used for user interfaces, several debounced rising/falling edge counters should be implemented.
 
 ==== Group and Multicast addressing ====
-Normally group addressing would require devices to be exactly the same or at least share the exact same parameter array layout. However, there is a way around that. Information Broadcast Messages contain an 8 character identifier and as such make no reference to the layout of parameters on the slave. Whenever a slave is to recieve data that is likely to be shared among many slaves, such as the current time or global power save settings, the slave should accept that data as an information broadcast request, and not as a parameter write.
+Normally group addressing would require devices to be exactly the same or at least share the exact same parameter array layout. However, there is a way around that. Information Broadcast Messages contain an 8 character identifier and as such make no reference to the layout of parameters on the slave. Whenever a slave is to receive data that is likely to be shared among many slaves, such as the current time or global power save settings, the slave should accept that data as an information broadcast request, and not as a parameter write.
 
 ==== Button Presses, Motion Sensors, and other Short Events ====
-Since the slaves cannot report without being asked, simply polling the actual sensor state would leave a large possibility of missed events.  Instead, maintain a rolling event count, and simply check if it has changed since the last time you polled it.  Alternately, maintain a queue aand place an entry in for every event. This requires more memory but allows the events to have attached data.
+Since the slaves cannot report without being asked, simply polling the actual sensor state would leave a large possibility of missed events.  Instead, maintain a rolling event count, and simply check if it has changed since the last time you polled it.  Alternately, maintain a queue and place an entry in for every event. This requires more memory but allows the events to have attached data.
 
 ===== Glossary =====
 
@@ -940,5 +942,3 @@ Gazebo **Parameter: A variable, function, or property exposed to the master by a
 mUTF-8: Modified UTF-8. This variant allows compatibility with null terminated strings.
 
 8-N-1: Asynchronous serial with 8 data bits, 1 start bit, and 1 stop bit.
-
-

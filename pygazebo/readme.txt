@@ -5,6 +5,9 @@ Creation-Date: 2013-02-18T23:15:28-08:00
 ====== pygazebo docs ======
 Created Monday 18 February 2013
 
+Copyright 2013 Daniel Dunn
+This work is licensed under a Creative Commons Attribution 3.0 Unported License.
+
 ===== Introduction =====
 
 pygazebo depends on crcmod and pyserial, so install those first.
