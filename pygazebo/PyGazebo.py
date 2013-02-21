@@ -217,6 +217,10 @@ class Gazebo_Slave(object):
                 n._argumentconverters.append(GazeboDataFormatConverter(j.type))
                 
             self.params[pd[PARAMETER_DESCRIPTOR_NAME_INDEX]] = n
+            self.name = sd[SLAVE_NAME_INDEX]
+            
+    def __repr__():
+        return('<Gazebo Slave '+ self.name + ' with ID ' + base64.b64encode(self.id)[:16].decode() + ">") 
 
 class NetworkManager(object):
     """Manage the serial port, enumeration of slaves, and discovery of resources. also manage
@@ -464,8 +468,7 @@ class NetworkParameter(object):
         if not 'i' in self.flags:
             return False
         
-        #If the variable has already expired
-        if (time.time() - self.LastUpdated) > self.expires:
+        #If the variable has already expiredtime() - self.LastUpdated) > self.expires:
             return False
             
         #Early return pattern
@@ -484,8 +487,15 @@ class NetworkParameter(object):
         string += 'of type ' + self.type
         string += ' to be interpreted as ' + self.interpretation
         string += '\n' +  'This parameter plays role ' + self.grouprole + ' in group ' + self.groupname + ' of type ' + self.groupclass + "\n"
+   
         if len(self.arguments) == 0:
             string += 'No arguments are required when reading from this parameter\n'
+        else:
+            print('The following arguments are required when reading from this parameter(in first to last order):\n')
+            for i in GazeboArgumentsStringToListOfNamedTuples(self.arguments):
+                print (i)
+                print ('\n')
+        
         if 's' in self.flags:
             string += 'Reads have side effects.\n'
         if 'S' in self.flags:
@@ -497,202 +507,247 @@ class NetworkParameter(object):
         if 'b' in self.flags:
             string += 'This is an item-wise FIFO. Reads will return the oldest N items and likewise for writes\n'
         if 'B' in self.flags:
-            string += 'This is a message-wise FIFO. Reads will return the one(1) oldest item.\n'
+            string += 'This is a message-wise FIFO. Reads will return the one(1) oldest item and likewise for writes.\n'
         if 'n' in self.flags:
             string += 'This parameter can be saved to nonvolatile memory.\n'
         if '!' in self.flags:
-            string += 'CAUTION!! ATCHUNG!! USE CARE WHEN MESSING WITH THIS PARAMETER. THE DEVICE HAS MARKED IT AS CRITICAL.\n'
+            string += 'CAUTION!! ACHTUNG!! USE CARE WHEN MESSING WITH THIS PARAMETER. THE DEVICE HAS MARKED IT AS CRITICAL.\n'
             
         print(string)
         
-        
 
-#Interpret a byte array according to a native Gazebo format string.
-#Output is in native python types and arrays are converted to lists.
-#For example, uint8[3][0:15] will return a list of up to 15 3-integer lists.
-def InterpretByteArrayAccordingToGazeboFormatString(ByteArray,Gazebo_DataType):
-        """Take a byte array and a standard gazebo type string as found in a resorce descriptor and convert it to a native python representation"""
+def GazeboDataFormatConverter(formatstring):
+    """Create some specialized sublclass of BaseGazeboDataConverter toconvert to and from binary data according to
+    the format string."""
+    if formatstring.startswith('enum'):
+        if '[' in formatstring:
+            return GazeboArrayofEnumConverter(formatstring)
+        else:
+            return GazeboEnumConverter(formatstring)
+    
+    if formatstring.startswith('UTF-8'):
+        return GazeboStringConverter(formatstring)
+    
+    if '[' in formatstring:
+        return GazeboArrayofNumbersConverter(formatstring)
+    else:
+        return GazeboNumberConverter(formatstring)
+    
+    
+    
+class BaseGazeboDataConverter():
+    """Base class providing functionality for interpreting gazebo types. May not be instatiated.
+    The API is that you pass the gazebo format string from the parameter descriptor to the constructor of a subclass
+    and the resulting object will convert to and from gazebo data. Conversions should not have side effects.
 
-        #This basically works by tokenizing the gazebo datatype string, applying
-        #a series of transformations, and then finallly parsing it.
-        
-        #we want an array where the fisrt elment is the base type
-        #The second element is how many base types make up an innermost array
-        #The second is how many innermot arrays make up a second level array, and so on.
-        
-        Type_as_list = Gazebo_DataType.split('[')
-        
-        
-        #Convert the base type to a python struct format string
-        BaseTypeLen = GazeboTypes[Type_as_list[0]]    ['length']
-        Type_as_list[0] = GazeboTypes[Type_as_list[0]]['pythonformat']
-        
-        
-        i2 = [Type_as_list[0]]
-        #Get rid of all the closing brackets
-        for i in Type_as_list[1:]:
-            i2.append( i.replace(']',''))
-        #Hack because I don't think we can change the iterable while iterating
-        Type_as_list = i2
-        
-            
-
-        #We want to make the last one a list [min,max] if it is a range.
-        #dont split if there is no colon
-        if ':' in Type_as_list[len(Type_as_list)-1]:
-            Type_as_list[len(Type_as_list)-1] = Type_as_list[len(Type_as_list)-1].split(':')
-        
-        
-        #Check if the length of the byte array is an even multiple of the base type
-        #Otherwise we have bytes that don't go anywhere and that is an error.
-        if not len(ByteArray) % BaseTypeLen == 0:
-            return None
-        
-        #Unpack the input byte array into a list of whatever the base type is
-        temp = []
-        
-        for i in range(0,len(ByteArray),struct.calcsize(Type_as_list[0])):
-            temp.append(struct.unpack(Type_as_list[0],ByteArray[i:i+struct.calcsize(Type_as_list[0])])[0])
-        
-        #Iterate over all of the nesting levels starting at the smallest and going towards the outermost
-        
-        for i in Type_as_list[1:]:
-        
-            #if this level of nesting is variable size check for size in range.
-            if isinstance(i, list):
-                if (len(temp)> int(i[0])) and (len(temp)<int(i[1])):
-                    #Variable elements can only be the last element in the nesting
-                    return temp
-            #If this nesting level is fixed size
-            else:
-                #check for things that are not multiples of the size we want
-                if len(temp) % int(i)==0:
-                    ##Package what we have so far into i equal size units
-                    temp2=[]
-                    for j in range(0,len(temp),int(i)):
-                        temp2.append(temp[j:j+int(i)])
-                    return temp2
-                #When we cannot resolve how to unpack
-                else:
-                    #This is for when you are having a bad problem and will not go to space
-                    return None
-        #return the native python representation of the gazebo byte array
-        return temp
-
-
-        
-class GazeboDataFormatConverter():
-    """Class that converts to and from raw gazebo bytestring data
-    According to gazebo's native format description strings, which are basic type[9][9:15] looking strings
-    Each GazeboDataFormatConverter can convert to and from a single format given to the constructor.
-    Note that [n:o] does not indicate a slice in a gazebo string but rather a variable array.
+    Subclasses need only handle their subset of format strings.
     """
 
+    #Some data to convert from gazebo's idea of a base type to a struct pack unpack input.
+    GazeboTypes = {"int16":"<h","uint16":'<H','int8':'<b','uint8':'<B','uint32':'<I','int32':'<i','UTF-8':'<B','float32':'<f','float64':'<d','enum':'<B'}
+
     def __init__(self,formatstring):
-        #This basically works by tokenizing the gazebo datatype string, applying
-        #a series of transformations, and then finallly parsing it.
-        
-        #we want an array where the fisrt elment is the base type
-        #The second element is how many base types make up an innermost array
-        #The second is how many innermot arrays make up a second level array, and so on.
-        GazeboTypes = {"int16":"<h","uint16":'<H','int8':'<b','uint8':'<B','uint32':'<I','int32':'<i','UTF-8':'<B','float32':'<f','float64':'<d'}
-        Type_as_list = formatstring.split('[')
-        self.GazeboBaseType = Type_as_list[0]
-        
-        #Convert the base type to a python struct format string
-        Type_as_list[0] = GazeboTypes[Type_as_list[0]]
-        self.BaseTypeLen = struct.calcsize(Type_as_list[0])
-        
-        i2 = [Type_as_list[0]]
-        #Get rid of all the closing brackets
-        for i in Type_as_list[1:]:
-            i2.append( i.replace(']',''))
-        #Hack because I don't think we can change the iterable while iterating
-        Type_as_list = i2
-        
-            
+        raise NotImplementedError
 
-        #We want to make the last one a list [min,max] if it is a range.
-        #dont split if there is no colon
-        if ':' in Type_as_list[len(Type_as_list)-1]:
-            Type_as_list[len(Type_as_list)-1] = Type_as_list[len(Type_as_list)-1].split(':')
-        
-        self.format = Type_as_list
-        
     def GazeboToPython(self,data):
-        """Take a byte array and convert it to python data"""
-    #Check if the length of the byte array is an even multiple of the base type
-        #Otherwise we have bytes that don't go anywhere and that is an error.
-        if not ((len(data) % self.BaseTypeLen) == 0):
-            return None
-        
-        #Unpack the input byte array into a list of whatever the base type is
-        temp = []
-        
-        for i in range(0,len(data),struct.calcsize(self.format[0])):
-            temp.append(struct.unpack(self.format[0],data[i:i+struct.calcsize(self.format[0])])[0])
-        
-        #Iterate over all of the nesting levels starting at the smallest and going towards the outermost
-        
-        for i in self.format[1:]:
-        
-            #if this level of nesting is variable size check for size in range.
-            if isinstance(i, list):
-                if (len(temp)> int(i[0])) and (len(temp)<int(i[1])):
-                    #Variable elements can only be the last element in the nesting
-                    return temp
-            #If this nesting level is fixed size
-            else:
-                #check for things that are not multiples of the size we want
-                if len(temp) % int(i)==0:
-                    ##Package what we have so far into i equal size units
-                    temp2=[]
-                    for j in range(0,len(temp),int(i)):
-                        temp2.append(temp[j:j+int(i)])
-                    temp = temp2
-                #When we cannot resolve how to unpack
-                else:#This is for when you are having a bad problem and will not go to space
-                    raise ValueError('Could not decode bytestream according to format string')
-        #return the native python representation of the gazebo byte array
-        if len(self.format)>1: #Ugly hack to see if the format is an array type or not
-            return temp
-        else:
-            return temp[0]      #In this case there should only be one element so why wrap it in an array
-         
+        """This must return relevalt python data"""
+        raise NotImplementedError
     def PythonToGazebo(self,data):
-        """Convert a python number, or iterable to gazebo's native data format"""
-        
-        def RecursiveNestedListSerialize(inputdata):
-            """collapse a nested array to a single array. e.g. convert [[1,2],[3,4]] to [1,2,3,4]"""
-            outer = []
-            #Go through the input and add anything that is not iterable to the list
-            #Anything that is iterable gets all of its contents added after first going through this function.
-            for i in inputdata:
-               if isinstance(i,collections.Iterable):
-                     outer.extend(RecursiveNestedListSerialize (i))
+       """This must return a bytestring"""
+       raise NotImplementedError
+
+    def FormatStringToTupleOfBaseAndNesting(self,formatstring):
+       """Take as input a Gazebo format string, 
+       and return as output a tuple of the base type along with a list representing the nesting structure
+       an example of the nesting format would be: [ [2] [ [1][2] ] ] for a variable array of two element arrays.
+
+       Essentially, the innermost array size is the first element, the second to innermost array size is the second element, and optionally the last element may itself be a list, with the first being min and the second being max. ONLY the outermost array can be of variable size. If we allowed multiple levels of variable array it would be very ambiguos how we should parse a raw bytestring. If we allowed any level other than the last to be variable it would complicate parsing for not much benefit.
+       """
+
+       #Each array level is specified C style in braces so split on opening braces
+       Type_as_list = formatstring.split('[')
+
+
+
+       i2 = [Type_as_list[0]]
+       #Get rid of all the closing brackets
+       for i in Type_as_list[1:]:
+           i2.append( i.replace(']',''))
+
+      #We want to make the last one a list [min,max] if it is a range.
+       #dont split if there is no colon
+       if ':' in Type_as_list[-1]:
+           Type_as_list[-1] = Type_as_list[-1].split(':')
+           Type_as_list[-1][0] = int(Type_as_list[-1][0])
+           Type_as_list[-1][1] = int( Type_as_list[-1][1])
+           
+       Type_as_list = i2
+ 
+       #The first element is the base type and the rest is a nesting structure
+       return (Type_as_list[0],Type_as_list[1:])
+
+    def ApplyNesting(self,nesting,data):
+       """take a flat list and nest it according to a nesting structure supplied as a list
+       The nesting format is that which is returned by the FormatStringToTupleOfBaseAndNesting function.
+       """
+       temp = data
+       for i in nesting:
+           
+               #if this level of nesting is variable size check for size in range.
+               if isinstance(i, list):
+                   if (len(temp)> int(i[0])) and (len(temp)<int(i[1])):
+                       #Variable elements can only be the last element in the nesting
+                       return temp
+                   else:
+                        raise ValueError('Could not decode bytestream according to format string')
+               #If this nesting level is fixed size
                else:
-                    outer.append(i)
-            return outer
+                   #check for things that are not multiples of the size we want
+                   if len(temp) % int(i) ==0:
+                       ##Package what we have so far into i equal size units
+                       temp2=[]
+                       for j in range(0,len(temp),int(i)):
+                           temp2.append(temp[j:j+int(i)])
+                       temp = temp2
+                   #When we cannot resolve how to unpack
+                   else:#This is for when you are having a bad problem and will not go to space
+                       raise ValueError('Could not decode bytestream according to format string')
+               #return the native python representation of the gazebo byte array
+               return temp[0]
         
-        if isinstance(data,int):
-            return struct.pack(self.format[0],data)
-        else:
-            f = bytearray(0)
-            d = RecursiveNestedListSerialize(data)
-            for i in d:
-                f.extend(struct.pack(self.format[0],i))
+    def RecursiveNestedListSerialize(self,inputdata):
+       """collapse a nested array to a single array. e.g. convert [[1,2],[3,4]] to [1,2,3,4]"""
 
-        return f
-                
+       outer = []
+       #Go through the input and add anything that is not iterable to the list
+       #Anything that is iterable gets all of its contents added after first going through this function.
+       for i in inputdata:
+          if isinstance(i,list):
+                outer.extend(self.RecursiveNestedListSerialize (i))
+          else:
+               outer.append(i)
+       return outer
+
         
+        
+class GazeboNumberConverter(BaseGazeboDataConverter):
+    
+    def __init__(self,formatstring):
+        #init a value passed to struct.pack and struct.unpack with the data
+        self._structformat = self.GazeboTypes[self.FormatStringToTupleOfBaseAndNesting(formatstring)[0]]
+    
+    def GazeboToPython(self, data):
+        return struct.unpack(self._structformat,data)[0]
+    
+    def PythonToGazebo(self,data):
+        return struct.pack(self._structformat,data)
 
+class GazeboArrayofNumbersConverter(BaseGazeboDataConverter):
     
+    def __init__(self,formatstring):
+        #init a value passed to struct.pack and struct.unpack with the data
+        self._structformat = self.GazeboTypes[self.FormatStringToTupleOfBaseAndNesting(formatstring)[0]]
+        self._nestingformat = self.FormatStringToTupleOfBaseAndNesting(formatstring)[1]
+        self._BaseTypeLen = struct.calcsize(self.GazeboTypes[self.FormatStringToTupleOfBaseAndNesting(formatstring)[0]])
+        
+    def GazeboToPython(self, data):
+        if not( (len(data) % self._BaseTypeLen)==0):
+            raise ValueError("The data was not an even multiple of the base type")
+        
+        t = []
+        
+        #Make a flat array of all of the values
+        for i in range(0,len(data),self._BaseTypeLen):
+            t.append(struct.unpack(self._structformat,data[i:i+self._BaseTypeLen]))
+            
+        #Impose the nesting structure
+        return self.ApplyNesting(self._nestingformat,t)
     
+    def PythonToGazebo(self,data):
+        t = bytearray(0)
+        
+        #Flatten the list, than structify it and return it
+        for i in self.RecursiveNestedListSerialize(data):
+            t.extend(struct.pack(self._structformat,i))
+            
+        return t
+
+class GazeboStringConverter(BaseGazeboDataConverter):
+    """Handles conversion to strings, automatically decodes and encodes to python strings.
+    Currently no support for arrays of strings. Uses UTF-8.
+    """
     
+    def __init__(self,formatstring):
+       ...
+        
+    def GazeboToPython(self, data):
+        return data.decode('utf8')
     
+    def PythonToGazebo(self,data):
+        return data.encode('utf8')
+
+class GazeboEnumConverter(BaseGazeboDataConverter):
+    """Handle gazebo values consisting of single enums"""
     
+    def __init__(self,formatstring):
+        #init a value passed to struct.pack and struct.unpack with the data
+        
+        temp = self.FormatStringToTupleOfBaseAndNesting(formatstring)[0]
+        temp = temp.split('{')[1] #Get just the enum list
+        temp = temp.split('}')[0] #Remove trailing close bracket to get raw csv
+        
+        temp = temp.split(';')   #Get the list of possibilities
     
+        self._enumtovalues = {}
+        j=0
+        for i in temp:
+            self._enumtovalues[i] = j
+            j+=1
+            
+        self._valuetoenum = {}
+        j=0
+        for i in temp:
+            self._valuetoenum[j] = i
+            j+=1
+        #All gazebo enums are based on unsigned chars
+        self._structformat = '<B'
     
+    def GazeboToPython(self, data):
+        return self._valuetoenum[struct.unpack(self._structformat,data)[0]]
+    
+    def PythonToGazebo(self,data):
+        return struct.pack(self._structformat,self._enumtovalues[data])
+    
+class GazeboArrayofEnumConverter(GazeboEnumConverter):
+    
+    def __init__(self,formatstring):
+        #init a value passed to struct.pack and struct.unpack with the data
+        GazeboEnumConverter.__init__(self,formatstring) #We need a lot of stuff the base class does
+        self._nestingformat = self.FormatStringToTupleOfBaseAndNesting(formatstring)[1]
+        self._BaseTypeLen = 1
+        
+    def GazeboToPython(self, data):
+       
+        if not( (len(data) % self._BaseTypeLen)==0):
+            raise ValueError("The data was not an even multiple of the base type")
+        
+        t = []
+        
+        #Make a flat array of all of the values
+        for i in data:
+            t.append(self._valuetoenum[i])
+            
+        #Impose the nesting structure
+        return self.ApplyNesting(self._nestingformat,t)
+    
+    def PythonToGazebo(self,data):
+        t = bytearray(0)
+        
+        #Flatten the list, than structify it and return it
+        for i in self.RecursiveNestedListSerialize(data):
+            t.extend(struct.pack(self._structformat,self._enumtovalues[i]))
+            
+        return t
     
     
     
