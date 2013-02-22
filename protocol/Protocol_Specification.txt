@@ -6,7 +6,7 @@ Creation-Date: 2013-01-01T13:06:41-08:00
 Created Tuesday 01 January 2013
 
 (c) 2013 Daniel Black.
-Version 0.11
+Version 0.22
 This work is licensed under a Creative Commons Attribution 3.0 Unported License.
 
 
@@ -151,7 +151,7 @@ To avoid failure, any software that acts as a master on a computer that is no
 8-N-1 RS485 Idle high non-inverted data carried along with power using RJ-11 connectors with pin order GND,PWR,A,B looking into the male with tab down. The voltage is 9-22V and all devices must handle a 24V over-voltage. All devices must hot plug to 22V through 250uH+0.5Ohms and 1.2mH+7ohms without damage. Devices requiring more than ~500mW should have an external power connector, which //should// take a voltage in the range of 7-30V but may take any voltage. Where possible cables should be made using 22 Gauge copper stranded wire, preferably twisted pair. Devices should use a transceiver with the slowest slew rate that will still support their highest baud rate. The RS485 bus should use failsafe pullups at one terminator.
 
 ==== Gazebo-TTL ====
-8-N-1 Idle high non-inverted data carried over a shared TTL wire pulled high to 5V via no less than 1k via any connector. Should power be carried alongside the voltage should be 5V. Devices s
+8-N-1 Idle high non-inverted data carried over a shared TTL wire pulled high to 5V via no less than 1k via any connector. Should power be carried alongside the voltage should be 5V.
 
 ===== Packet Format =====
 The protocol defines two types of packet, //Standard// and //Short//.
@@ -216,6 +216,8 @@ Short packets can also represent binary or hexadecimal simply by transferring th
 Some packets-type specify that the slave must give a response. 
 
 This response must be given within 5 byte times or 10% of the time it took to send the message, however slaves **should **respond within one byte time for maximum throughput . The same rules apply for data responses to parameter requests and the like. 
+
+The execption to this rule is Nonvolatile Memory. When the master sends a command to write to NV memory it should be prepared to wait up to 100ms+25ms per byte that needs to be written. Devices of course should still carry out this operation as fast as possible.
 
 
 ==== Delimiting ====
@@ -430,6 +432,8 @@ The current value will become the new default at power up.  Slaves must respond 
 
 This allows for a standardized way to implement configurable devices such as electronic speed controllers and motion detector sensitivity thresholds. Master software should require confirmation such as "Are you sure you want to make the current settings the new default?" before continuing.
 
+As mentioned in //Timing and Delimiting rules//, when the master sends a command to write to NV memory it should be prepared to wait up to 100ms+25ms per byte that needs to be written.
+
 === 111-127: Device Specific Commands ===
 This range of packet types has been reserved for device specific messages.
 Messages going to the master should still be odd and messages from the master should still be even.
@@ -480,7 +484,7 @@ Messages going to the master should still be odd and messages from the master sh
 The valid error codes are:
 
 ==== 0: Error ====
-Generic Error Occurred. A device may send error 0 instead of any other error if there is not enough flash to properly implement specific errors.
+Generic Error Occurred. A device may send error 0 instead of any other error if there is not enough flash to properly implement specific errors. If used to indicate a Application Level error, there should be extra information attatched.
 
 ==== 1: Nonexistent Parameter ====
 A read or write was attempted to something not there.
@@ -514,13 +518,18 @@ The write request tried to write less data than would fit in the selected variab
 ==== 9:Too Many Groups ====
 There was a request to join a group but there is no more space to store group addresses. Quit at least one group and retry.
 
+==== 10: Expected Less Data in Read Request ====
+You made a read request with a longer string of arguments than expected. Can also indicate that 0 bytes of arguments were expected.
+
+==== 11: Expected More Data in Read Request ====
+You made a read request to a parameter that takes arguments but did not pass enough data.
 
 ===== Slave Description String =====
 This is the string that describes a slave and may be up to (248*256)-1 bytes long.
 It must be of the form:
 (Without enclosing Square Brackets or line breaks)
 
-[Product Name,Gazebo Major Version, Device Firmware Version,flags, Individual Device Name, Number of parameters,maximum baud rate,description,key-value object]
+[Gazebo Major Version, Product Name, Device Firmware Version, flags, Number of parameters,maximum baud rate,description,key-value object]
 
 
 Any field may be empty except number of parameters and maximum baud rate.
@@ -696,12 +705,12 @@ IEEE float
 
 === int32 ===
 
-=== enum{CSV OF VALUES} ===
-An enumeration similar to C enumerations. Between the brackets can be any number for 0 to 255 of comma separated identifiers which may not contain spaces or commas.
+=== enum{FirstPossibleValue;SecondPossibleValue;etc} ===
+An enumeration similar to C enumerations. Between the brackets can be any number for 0 to 255 of semicolon separated identifiers which may not contain spaces or commas or brackets.
 This should be considered exactly the same as a uint8 with additional semantics attached. Keep in mind parameter description strings are limited to 248 bytes total.
 
-=== utf-8n ===
-Alias of ''uint8'', used to indicate that this should be interpreted as a null-terminated string.
+=== UTF-8 ===
+Alias of ''uint8'', used to indicate that this should be interpreted as a string. Null terminators should not be sent.
 
 === Arrays ===
 **An array type of any of the above is also valid**, following the convention type[count] or type[min:max] for variable lengths.

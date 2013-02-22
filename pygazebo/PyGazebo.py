@@ -37,6 +37,8 @@ PACKET_TYPE_SLAVE_PRESENCE_DETECT_REQUEST = 0
 PACKET_TYPE_PARAMETER_READ = 8
 PACKET_TYPE_SLAVE_ERROR = 5
 PACKET_TYPE_WRITE = 10
+PACKET_TYPE_INFORMATION_BROADCAST = 16
+PACKET_TYPE_SAVE_NONVOLATILE = 22
 
 PARAMETER_DESCRIPTOR_NAME_INDEX = 0
 PARAMETER_DESCRIPTOR_TYPE_INDEX = 1
@@ -48,8 +50,8 @@ PARAMETER_DESCRIPTOR_GROUP_ROLE_INDEX = 5
 PARAMETER_DESCRIPTOR_GROUP_NAME_INDEX = 6
 PARAMETER_DESCRIPTOR_DESCRIPTION_INDEX = 8
 
-SLAVE_DESCRIPTOR_TOTAL_PARAMETERS_INDEX = 5
-
+SLAVE_DESCRIPTOR_TOTAL_PARAMETERS_INDEX = 4
+SLAVE_DESCRIPTOR_SLAVE_NAME_INDEX = 1
 
 #Set up the CRC calc used to check the validity of Gazebo packets. [Baicheva00],0 initial, no bitreversal, 0 xor
 def CRC16(data):
@@ -62,7 +64,9 @@ def GazeboArgumentsStringToListOfNamedTuples(gstring):
     """Convert a gazebo argument string to a list of (name,type,interpretation) tuples.
      Will not actually validate the string, hopefully the device supplies a correct one"""
     GazeboReadArgument = collections.namedtuple('GazeboReadArgument',['name','type','interpretation'])
+    gstring = gstring.replace('[','').replace(']','')
     s = gstring.split(';')
+    
     if (len(s)==1):
        return []
     #[[a;b;c];[a;b;c]]
@@ -73,7 +77,7 @@ def GazeboArgumentsStringToListOfNamedTuples(gstring):
     v = []
     for i in range(0,len(s),3):
         g = GazeboReadArgument(s[i],s[i+1],s[i+2])
-        v.append(g.replace('[','').replace(']',''))
+        v.append(g)
     return v
         
     
@@ -199,7 +203,7 @@ class Gazebo_Slave(object):
             
             pd = r.returndata.decode("utf-8")
             pd = pd.split(',')
-            
+
             n.flags = pd[PARAMETER_DESCRIPTOR_FLAGS_INDEX]
             n.type = pd[PARAMETER_DESCRIPTOR_TYPE_INDEX]
             n.interpretation = pd[PARAMETER_DESCRIPTOR_INTERPETATION_INDEX]
@@ -215,12 +219,24 @@ class Gazebo_Slave(object):
             #One for each argument required when reading from this parameter
             for j in n.arguments:
                 n._argumentconverters.append(GazeboDataFormatConverter(j.type))
-                
+            n.name = pd[PARAMETER_DESCRIPTOR_NAME_INDEX]
             self.params[pd[PARAMETER_DESCRIPTOR_NAME_INDEX]] = n
-            self.name = sd[SLAVE_NAME_INDEX]
+            self.name = sd[SLAVE_DESCRIPTOR_SLAVE_NAME_INDEX]
             
-    def __repr__():
-        return('<Gazebo Slave '+ self.name + ' with ID ' + base64.b64encode(self.id)[:16].decode() + ">") 
+    def __repr__(self):
+        return('<Gazebo Slave '+ self.name + ' with ID ' + base64.b64encode(self.id)[:16].decode() + ">")
+      
+    def SaveParameters(self):
+         """Tell the slave to save all savable parameters to nonvolatile memory"""
+         g = GazeboPacket()
+         g.data = b'CONFIRM'
+         g.address = self.address
+         g.type = PACKET_TYPE_SAVE_NONVOLATILE
+         b = g.toBytes()
+         n = NetworkRequest(self.manager)
+         n.data = b
+         n.expect = 'gazebopacket'
+         return n.Send()
 
 class NetworkManager(object):
     """Manage the serial port, enumeration of slaves, and discovery of resources. also manage
@@ -279,6 +295,8 @@ class NetworkManager(object):
                     thisrequest.returndata = f.data
                     thisrequest.fullpacket = f
                     thisrequest.LockedWhileNotCompleted.set()
+                    
+            thisrequest.LockedWhileNotCompleted.set()#Failsafe, handles the case of none
                     
                     
     
@@ -348,7 +366,7 @@ class NetworkManager(object):
         n.data = g.toBytes()
         #We are not expecting a packet in return. We are expectng garbage as many nodes send thier responses.
         #All we want to know is if at least one device responded. So we listen for 50ms.
-        n.expect = ['time',0.050]
+        n.expect = ['time',0.023]
         n.Send()
         if len(n.returndata) >0:
             return True
@@ -358,12 +376,38 @@ class NetworkManager(object):
         
         
         
-    def SendInformationBroadcast(self,key,data):
-                pass
+    def SendInformationBroadcast(self,key,data,formatstring = None):
+                """Send an information broadcast to all slaves connected or not.
+                  if the optional formatstring is a valid gazebo format string,
+                  will attempt to convert the input data according to it. Otherwise you must provide the raw bytes"""
+                
+                if not (formatstring == None):
+                   i = GazeboDataFormatConverter(formatstring)
+                   data = i.PythonToGazebo(data)
+                   
+                g = GazeboPacket()
+                g.address = 0
+
+                #Pad with zeros till 8 chars, or truncate at 8.
+                k = bytearray(8)
+                j =0
+                for i in key.encode('utf-8'):
+                   k[j]=i
+                   j+=1
+                   
+                g.data = k + data
+                g.type = PACKET_TYPE_INFORMATION_BROADCAST
+                b = g.toBytes()
+                n = NetworkRequest(self)
+                n.data = b
+                n.expect = None
+                n.Send(7)
     
     def SendTimeInfo(self):
-       
-                pass
+                t = time.locatime()
+                self.SendInformationBroadcast('YEAR',struct.pack('<H',t[0]))
+                self.SendInformationBroadcast('MONTH',struct.pack('<B',t[1]))
+                self.SendInformationBroadcast('MONTH',struct.pack('<B',t[1]))
                     
 
 #A simple class encapsulating an arbitrary request of the network, in terms of data to be sent
@@ -385,7 +429,7 @@ class NetworkRequest(object):
     def Send(self,priority ="7",block = True):
         self.manager.requestqueue.put(self)
         self.LockedWhileNotCompleted.clear()
-        if block:
+        if block and (not(self.expect == None)):
             #wait for the request to complete
             self.LockedWhileNotCompleted.wait()
             return self.returndata
@@ -407,12 +451,12 @@ class NetworkParameter(object):
         #Check if we can avoid making the request by just returning the cached value.
         if not self._fresh():
             g = GazeboPacket()
-            g.data = struct.pack("<B",self.paramnumber)
+            g.data = bytearray(struct.pack("<B",self.paramnumber))
             j = 0
             for i in args:
                 #Convert all of the arguments using the list of argument converters that the parameter
                 #instance has
-                g.data.append(self._argumentconverters[j].PythonDataToGazebo(i))
+                g.data.extend(self._argumentconverters[j].PythonToGazebo(i))
                 j = j + 1
                 
             g.address = self.parentslave.address
@@ -436,15 +480,15 @@ class NetworkParameter(object):
                 return None
         #If the cached value was fresh
         else:
-            return CachedValue
+            return self.CachedValue
             
-    def Write(self,*data):
+    def Write(self,data):
         """Write data to a parameter. Data must be of a format that is compatibe with the devices expected type."""
         
         #Translate the input data to gazebo's format, prepend the parameter number
         temp = self._datainterpreter.PythonToGazebo(data)
-        data = bytearray(struct.pack('<B',self.paramnumber))
-        data.extend(temp)
+        data = struct.pack('<B',self.paramnumber)
+        data= data + temp
         
         
         g = GazeboPacket()
@@ -467,16 +511,19 @@ class NetworkParameter(object):
         #Not-Idempotent values are not cacheable
         if not 'i' in self.flags:
             return False
-        
-        #If the variable has already expiredtime() - self.LastUpdated) > self.expires:
+        #Read with arguments values are not cacheable
+        if len(self.arguments):
+           return False
+        #If the variable has already expired
+        if (time.time() - self.LastUpdated) > self.expires:
             return False
             
         #Early return pattern
-        return true
+        return True
         
     def info(self):
     #Make a human readable report of this parameter
-        string = "<"
+        string = "\n"
         if 'r' in self.flags and "w" in self.flags:
             string+= 'Readable and writable parameter '
         elif 'r' in self.flags:
@@ -514,7 +561,9 @@ class NetworkParameter(object):
             string += 'CAUTION!! ACHTUNG!! USE CARE WHEN MESSING WITH THIS PARAMETER. THE DEVICE HAS MARKED IT AS CRITICAL.\n'
             
         print(string)
-        
+
+    def __repr__(self):
+        return('<Parameter Object ' + self.name + ' of type ' + self.type + ' with interpretation ' +self.interpretation + '>')
 
 def GazeboDataFormatConverter(formatstring):
     """Create some specialized sublclass of BaseGazeboDataConverter toconvert to and from binary data according to
@@ -613,7 +662,8 @@ class BaseGazeboDataConverter():
                    else:#This is for when you are having a bad problem and will not go to space
                        raise ValueError('Could not decode bytestream according to format string')
                #return the native python representation of the gazebo byte array
-               return temp[0]
+               
+       return temp[0]
         
     def RecursiveNestedListSerialize(self,inputdata):
        """collapse a nested array to a single array. e.g. convert [[1,2],[3,4]] to [1,2,3,4]"""
@@ -658,7 +708,7 @@ class GazeboArrayofNumbersConverter(BaseGazeboDataConverter):
         
         #Make a flat array of all of the values
         for i in range(0,len(data),self._BaseTypeLen):
-            t.append(struct.unpack(self._structformat,data[i:i+self._BaseTypeLen]))
+            t.append(struct.unpack(self._structformat,data[i:i+self._BaseTypeLen])[0])
             
         #Impose the nesting structure
         return self.ApplyNesting(self._nestingformat,t)

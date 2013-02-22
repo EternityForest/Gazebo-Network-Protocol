@@ -86,7 +86,7 @@ else:
     fail()
 ####
 
-case('uint16[2][2]')
+case('uint8[2][2]')
 
 n = PyGazebo.GazeboDataFormatConverter('uint8[2][2]')
 
@@ -94,11 +94,54 @@ if n.PythonToGazebo([[1,2],[3,4]]) == b'\x01\x02\x03\x04':
     succeed()
 else:
     fail()
-    
-if n.GazeboToPython(b'\x01\x02\x03\x04') == [[1,2],[3,4]]:
+
+if n.PythonToGazebo([[1,1],[3,3]]) == b'\x01\x01\x03\x03':
     succeed()
 else:
-    fail
+    fail()
+    
+if n.GazeboToPython(b'\x01\x01\x03\x03') == [[1,1],[3,3]]:
+    succeed()
+else:
+    fail()
+    
+####
+
+case('uint8[4]')
+
+n = PyGazebo.GazeboDataFormatConverter('uint8[4]')
+
+if n.PythonToGazebo([1,2,3,4]) == b'\x01\x02\x03\x04':
+    succeed()
+else:
+    fail()
+
+if n.PythonToGazebo([1,1,3,3]) == b'\x01\x01\x03\x03':
+    succeed()
+else:
+    fail()
+    
+if n.GazeboToPython(b'\x01\x01\x03\x03') == [1,1,3,3]:
+    succeed()
+else:
+    fail()
+
+##############################
+case('uint8[3][6]')
+
+n = PyGazebo.GazeboDataFormatConverter('uint8[3][6]')
+
+if n.PythonToGazebo([[1,2,3],[4,5,6],[1,2,3],[4,5,6],[1,2,3],[4,5,6]]) == b'\x01\x02\x03\x04\x05\x06\x01\x02\x03\x04\x05\x06\x01\x02\x03\x04\x05\x06':
+    succeed()
+else:
+    fail()
+
+
+if n.GazeboToPython(b'\x01\x02\x03\x04\x05\x06\x01\x02\x03\x04\x05\x06\x01\x02\x03\x04\x05\x06') == [[1,2,3],[4,5,6],[1,2,3],[4,5,6],[1,2,3],[4,5,6]]:
+    succeed()
+else:
+    fail()
+
     
 ###########
 case('enum{a;b;c;de;fgh[2]}')
@@ -114,6 +157,11 @@ if n.PythonToGazebo(['b','a']) == bytearray([1,0]):
     succeed()
 else:
     fail()
+
+if n.PythonToGazebo(['c','a']) == bytearray([2,0]):
+    succeed()
+else:
+    fail()
     
 if n.GazeboToPython(b'\x01\x00') == ['b','a']:
     succeed()
@@ -124,6 +172,70 @@ if n.GazeboToPython(bytearray([0,1])) == ['a','b']:
     succeed()
 else:
     fail()
+test('ApplyNesting')
+case
+######################################################
+test('GazeboArgumentsStringToListOfNamedTuples')
+
+case("[a;b;c];[d;e;f]")
+
+if PyGazebo.GazeboArgumentsStringToListOfNamedTuples('[[a;b;c];[d;e;f]]') == [('a','b','c'),('d','e','f')]:
+    succeed()
+else:
+    fail()
+
+case("[a;b;c];[d;e]")
+
+
+try:
+     PyGazebo.GazeboArgumentsStringToListOfNamedTuples('"[a;b;c];[d;e]"') #This cannot be made into an even number of 3-tuples so will fail.
+     fail()
+except ValueError:
+     succeed()
+
+#######################################################
+test('GazeboPacket')
+case('Make a packet, convert to bytes and back')
+
+g = PyGazebo.GazeboPacket()
+
+g.data = b'testing'
+g.type = 123
+g.address = 456
+
+b = g.toBytes()
+
+f = PyGazebo.GazeboPacket()
+
+#Should return 0 or not complete
+if f.ParseBytes(b[0:-3]):
+    fail()
+else:
+    succeed()
+    
+#Should return 1 because we gave it the rest
+if f.ParseBytes(b[-3:]):
+    succeed()
+else:
+    fail()
+#Maxe sure the data matches
+if (f.data == b'testing') and (f.type ==g.type) and (f.address == g.address):
+    succeed()
+else:
+    fail()
+
+h = PyGazebo.GazeboPacket()
+
+#Now parse again but give it a bad CRC
+h.ParseBytes(b[:-1])
+if h.ParseBytes(bytearray(b[-1]+2)) == -1:
+    succeed()
+else:
+    fail()
+
+
+ 
+
     
 print('failures: ' +str(failures) +'\n')
 print(failedmodules)

@@ -20,6 +20,7 @@
 
 **/
 
-void BufferedSerialWrite(unsigned char);
-void Gazebo_Initialize();
-unsigned short TimeSinceLastByteWasRecieved();
+  
+extern void BufferedSerialWrite(unsigned char);
+extern void  Gazebo_Initialize();
+extern unsigned short TimeSinceLastByteWasRecieved();
