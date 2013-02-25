@@ -24,3 +24,4 @@
 extern void BufferedSerialWrite(unsigned char);
 extern void  Gazebo_Initialize();
 extern unsigned short TimeSinceLastByteWasRecieved();
+extern long LastByteTime; //This is here for an ugly hack

@@ -137,4 +137,5 @@ extern  void HandleInformationBroadcast(unsigned char*);
 extern void HandleNonvolatileSave();
 extern void SendSlaveDataResponse(const unsigned char *, const unsigned char);
 extern void SendSlaveError( unsigned char,char *);
-
+extern unsigned char SendErrorIfArgumentStringOutOfBounds(unsigned char,unsigned char,unsigned char);
+extern unsigned char SendErrorIfADataWriteOutOfBounds(unsigned char,unsigned char,unsigned char);

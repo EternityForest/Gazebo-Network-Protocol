@@ -24,10 +24,10 @@
 #include "protocol.h"
 
 
-const unsigned char Gazebo_DeviceUUID[16] = "THISISATESTUUID";
+const unsigned char Gazebo_DeviceUUID[16] = "gths4vlogfedxtf";
 
 /**A string representing data about the slave that can be requested by the master*/
-const char Gazebo_SlaveData[] = "x0,Test Device,1,,3,25000,A basic test device,{}";
+const char Gazebo_SlaveData[] = "x0,SpookyCastle for Arduino I/O board,1,,6,25000,An I/O board letting the computer control the i/o of the arduino,{}";
 
 /**This must return byte X of the 16 Byte Unique Identifier for this device*/
 unsigned char GetByteOfUUID(const unsigned char bytenumber)
@@ -36,24 +36,24 @@ unsigned char GetByteOfUUID(const unsigned char bytenumber)
 }
 
 //Declare this extern here so the struct can see it
-extern unsigned char myvariable;
-extern void AddHandler(unsigned char*);
-extern unsigned char colors[19];
+extern void PinModeHandler(unsigned char*);
+extern void DigitalWriteHandler(unsigned char*);
+extern void DigitalReadHandler(unsigned char *);
+extern void AnalogReadHandler(unsigned char *);
+extern void AnalogWriteHandler(unsigned char*);
+extern void RavenHandler(unsigned char *);
 
 /**Handle an information broadcast message from the master. Will recieve the entire packet*/
 void HandleInformationBroadcast(unsigned char *packet)
 {
-  if (CheckInformationBroadcastKey("settemp",packet))
-  {
-    myvariable = packet[IndexOfFirstByteOfDataInInformationBroadcast];
-  }
+
 }
 
 extern void DoEEPROMWriting();
-/**Handle an information broadcast message from the master*/
+/**Handle an nvsave command from the master*/
 void HandleNonvolatileSave()
 {
-  DoEEPROMWriting();
+
 }
 
 /**
@@ -72,29 +72,46 @@ const struct Parameter Gazebo_Parameters[]=
 {
   /*Variable(or unused),Getter (or unused),Setter(or unused), Length Min, Length Max, Flags
    Descriptor*/
-   
-   
-   //Here we say there is a readable and writable simple parameter called TestVar linked to variable myvariable. The n in riwIn means it can be saved to flash.
+
   {
-    &myvariable,0,0,   1,         1 ,         (FLAG_SIMPLE|FLAG_READ|FLAG_WRITE)
-      ,"TestVar,uint8,temp,[[]],riwIn,none,none,none,A test var,{}"
-    },
-    
-    //There is a paraemeter called Add, the varible field is unused as this is an advaced parameter, it is not writeable, and the getter is addhandler.
-    //In the string we see it takes two arguments, both uint8 interpreted as number.
-     {
-      0,AddHandler,0,   1,         1 ,         (FLAG_READ)
-      ,"Add,uint8,temp,[[a;uint8;number];[b;uint8;number]],ri,none,none,none,Add two numbers together,{}"
+    0,PinModeHandler,0000,   2,         2 ,         (FLAG_READ)
+      ,"PinMode,void,void,[[pin;uint8;number];[mode;enum{output|input|input_pullup};mode],ri,none,none,none,Use ~460Hz PWM to write an analog value to a pin.,{}"
     }
     ,
-     
-     //There is a simple nested array to be interpreted as RGB that we can only read from, linked to color
-     {
-    &colors,0000,0000,   18,         1 ,         (FLAG_SIMPLE|FLAG_READ)
-      ,"colors,uint8[3][6],RGB,[],ri,none,none,none,A database of RGB values for the rainbow,{}"
+  {
+    0,DigitalWriteHandler,0,   1,         1 ,         (FLAG_READ)
+      ,"DigitalWrite,void,void,[[pin;uint8;IO pin number];[value;enum{high|low};Output state]],ris,none,none,none,Write a value to a digital pin.,{}"
+    }
+    ,
+
+  {
+    0,DigitalReadHandler,0,   1,         1 ,         (FLAG_READ)
+      ,"DigitalRead,uint8,boolean,[[pin;uint8;number]],ri,none,none,none,Read the digital state of a pin,{}"
+    }
+    ,
+
+
+  {
+    0,AnalogReadHandler,0000,   2,         2 ,         (FLAG_READ)
+      ,"AnalogRead,uint16,Volts*204.8,[[pin;uint8;number]],ri,none,none,none,Read the analog voltage of the given analog pin.,{}"
+    }
+    ,
+
+  {
+    0,AnalogWriteHandler,0000,   2,         2 ,         (FLAG_READ)
+      ,"AnalogWrite,void,void,[[pin;uint8;number];[value;uint8;duty*255]],ri,none,none,none,Use ~460Hz PWM to write an analog value to a pin.,{}"
+    }
+    ,
+
+  {
+    0,RavenHandler,0000,   0,         0 ,         (FLAG_READ)
+      ,"TheRaven,UTF-8[0:80],GrimUngainlyGhastlyGauntAndOminousBirdOfYore,[],ri,none,none,none,Just an easter egg!,{}"
     }
   };
 
   /**This indicates the number of parameters*/
-  const unsigned char Gazebo_Parameters_Length = 3;
+  const unsigned char Gazebo_Parameters_Length = 6;
+
+
+
 

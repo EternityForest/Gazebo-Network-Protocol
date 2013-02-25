@@ -6,7 +6,7 @@ Creation-Date: 2013-01-01T13:06:41-08:00
 Created Tuesday 01 January 2013
 
 (c) 2013 Daniel Black.
-Version 0.22
+Version 0.32
 This work is licensed under a Creative Commons Attribution 3.0 Unported License.
 
 
@@ -637,7 +637,7 @@ The parameter may be read by Master
 The master may write here
 
 === i=reads are idempotent ===
-Any number of consecutive reads will return the same data unless something external changes it. However the act of reading itself may not cause changes.
+Any number of consecutive reads will return the same data unless something external changes it. However the act of reading itself may not cause changes. For parameters that take argumets to thier read operations, idempotency only applies where two reads have the same arguments.
 
 === I=writes are idempotent ===
 N+1 writes of the same data have the same effect as N writes. Does not imply that write A followed by write B where A and B have different data is equivalent to write B alone.
@@ -705,8 +705,8 @@ IEEE float
 
 === int32 ===
 
-=== enum{FirstPossibleValue;SecondPossibleValue;etc} ===
-An enumeration similar to C enumerations. Between the brackets can be any number for 0 to 255 of semicolon separated identifiers which may not contain spaces or commas or brackets.
+=== enum{FirstPossibleValue|SecondPossibleValue;etc} ===
+An enumeration similar to C enumerations. Between the brackets can be any number for 0 to 255 of pipe separated identifiers which may not contain spaces or commas or brackets.
 This should be considered exactly the same as a uint8 with additional semantics attached. Keep in mind parameter description strings are limited to 248 bytes total.
 
 === UTF-8 ===
@@ -722,6 +722,10 @@ A write to a float[0:50] array may contain 0 to 50 floats, and a read to a float
 Multidimensional arrays are considered arrays of arrays, and only the last element may be variable. the syntax for a multidimensional array is basetype[a][b], representing b arrays of size a. any number of dimensions is allowed. uint8[10][0:10] would be valid whereas uint8[1:5][10] would not. 
 
 The actual transmission format for a multidimensional array is to send each element of the first array, then each element of the second array, and so on. We essentially treat the array as a basetype and send an array of it, which may further be considered yet another type of array and repeated.
+
+=== void ===
+No data whatsoever. Used for read with arguments(function calls) used purely for side effects.
+The short packet 0x06(Acknowledgement) should be sent in response to a successful read from void parameter.
 
 ==== Advanced Types ====
 

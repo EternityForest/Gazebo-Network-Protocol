@@ -46,6 +46,12 @@ A dict of all of the slaves as Gazebo_Slave objects, indexed by UUID.
 '''
 
 
+==== NetworkManager.GetDevicesImplementing(GroupClassName) ====
+Returns a dict of slaves that implement at least one instance of GroupClassName, indexed by UUID
+
+==== NetworkManger.GetDevicesNamed(name) ====
+Returns a dict of slaves with the specified device name, indexed by UUID
+
 ==== NetworkManager.SendInformationBroadcast(key,data,formatstring=None) ====
 
 This lets you send arbitrary information broadcasts. Key is the broadcast key, data is the data, and formatstring is a normal gazebo format string(e.g uint8[9], float,float[2][2],enum{a;b;c;d},etc) that described how to translate the data. If  ths argument is missing, you must pass the exact raw binary.
@@ -61,12 +67,23 @@ A dict of all parameters of the slave as NetworkParameter objects
 Tell the slave to save all parameters that can be saved to nonvolatile memory. This command may take several seconds.
 Watch out, as slaves will likely only support 10,000 to 1,000,000 write cycles.
 
+==== Gazebo_Slave.GetInstances(groupclass) ====
+Returns a dict(indexed by group instance name) of dicts(indexed by group role) of parameters
+
 ===== The NetworkParameter object =====
 
 Represents one parameter
 
+
+==== NetworkParameter.__call__(*args) ====
+The network parameter object itself is callable. Calling it is an alias to read()
+
 ==== NetworkParameter.info() ====
-prints an info string.
+Return a string of imformation about the parameter
+
+
+==== NetworkParameter.pinfo() ====
+prints the info string as retuned by info()
 
 === Example ===
 '''
@@ -79,8 +96,11 @@ Writes are idempotent(writing the same data twite is equivalent to once)
 '''
 
 
-==== NetworkParameter.Read(*args) ====
+==== NetworkParameter.read(*args) ====
 Read the value of the network parameter. Some parameters may not be simple variables and Reading may be equivalent to pulling from a queue, and some parameters may represent functions and arguments may be required. If the value was read very recently(default is 10hz), this may return a cached value, but only for reads that arer idempotent. The value will be translated to a native python equivalent(enum to string, utf8 to string, array to list, nested array to nested list,etc)
+
+Note that in some cases the "read" operation of a parameter may in fact be a function that writes something.
+In this case calling parameter.read to write something is confusing, so the parameter itself is callable for these cases. NetworkParameter(*args) is a direct alias of NetworkParameter.read(*args). Use whichever one you feel to be clearer.
 
 === Example ===
 '''
@@ -89,7 +109,7 @@ Read the value of the network parameter. Some parameters may not be simple varia
 '''
 
 
-==== NetworkParameter.Write(data) ====
+==== NetworkParameter.write(data) ====
 Writes data to the parameter. Returns True on success. The value will be translated from a native python equivalent. You can pass arrays in as lists, enums as strings, and nested arrays as nested lists.
 
 === Example ===
@@ -103,3 +123,8 @@ The time(in seconds) to keep an old value for. The pygazebo library will try to 
 Float values are allowed. Read with arguments parameters and parameters with non idempotent read operations will not be cached.
 Defaults to 100ms.
 
+==== NetworkParameter.fresh() ====
+Returns true if the parameter has not expired
+
+==== NetworkParameter.CachedValue ====
+The value returned the last time the actually slave device was polled

@@ -116,7 +116,7 @@ static unsigned char strlenwithnull(const char *str)
 
     if  (str[i]==0)
     {
-      return (i);
+      return (i+1);
     }
   }
 
@@ -248,8 +248,14 @@ static void HandleParameterRequest(unsigned char *packet)
 
   if (parameter.flags&FLAG_SIMPLE)
   {
-    /// if(packet[LENGTH_OFFSET]>PACKET_OV
+    if(packet[LENGTH_OFFSET]>PACKET_OVERHEAD)
+	{
     SendSlaveDataResponse((unsigned char*)parameter.variable,parameter.minlength);
+	}
+	else
+	{
+	SendSlaveError(ERROR_TOO_MANY_ARGUMENTS,"");
+	}
   }
 
   else
@@ -520,7 +526,7 @@ static void HandleNewPacket(unsigned char *packet)
     //Make sure it said the magic word
     for(i=0;i<7;i++)
     {
-      if (!((packet+DATA_OFFSET)[i]== ("CONFIRM"[i])));
+      if (!(*(packet+DATA_OFFSET+i)== ("CONFIRM"[i])));
       return;
     }
     HandleNonvolatileSave();
@@ -550,6 +556,8 @@ void PrintNstringAndHash(const unsigned char *str)
     }
     else
     {
+      HashUpdate(0);
+      BufferedSerialWrite(0) ;
       break;
     }
     SafetyCounter++;
@@ -649,7 +657,7 @@ unsigned char  CheckInformationBroadcastKey(const char *key,const unsigned char 
   unsigned char i;
 
   packet += DATA_OFFSET;
-  for (i=0;i<7;i++)
+  for (i=0;i<8;i++)
   {
     //if they are both zero padded in the same way
     if (((key[i])==0)&&((packet[i]==0)))
@@ -665,3 +673,34 @@ unsigned char  CheckInformationBroadcastKey(const char *key,const unsigned char 
   return (1);
 }
 
+/**Return true and automatically send an error on out of bounds length of arg data. return 1 on len error */
+unsigned char SendErrorIfArgumentStringOutOfBounds(unsigned char len,unsigned char lowerbound,unsigned char upperbound)
+{
+    if (len>upperbound)
+    {
+      SendSlaveError(ERROR_TOO_MANY_ARGUMENTS,"");
+	  return(1);
+    }
+    else if (len<lowerbound)
+    {
+      SendSlaveError(ERROR_TOO_FEW_ARGUMENTS,"");
+	  return(1);
+    }	
+	return(0);
+}
+
+/**Return true and automatically send an error on out of bounds length of data. packet is the data passed to a setter. return 1 on len error*/
+unsigned char SendErrorIfDataWriteOutOfBounds(unsigned char len,unsigned char lowerbound,unsigned char upperbound)
+{
+if (len>upperbound)
+    {
+      SendSlaveError(ERROR_TOO_LARGE_DATA_WRITE,"");
+	  return(1);
+    }
+    else if(len<lowerbound)
+    {
+      SendSlaveError(ERROR_TOO_SMALL_DATA_WRITE,"");
+	  return(1);
+	}
+	return(0);
+}

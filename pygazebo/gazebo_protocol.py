@@ -15,7 +15,6 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with The Gazebo Protocol Project.  If not, see <http://www.gnu.org/licenses/>.
 
-
 import time
 import struct
 import base64
@@ -26,32 +25,36 @@ import serial
 import collections
 
 GAZEBO_SHORT_PACKETS = bytes([0x01,0x06] + list(range(0x30,0x46))) # ASCII 0 through F plus ACK and 1
-PACKET_TYPE_READ = 0x08
+
 DATA_START_INDEX = 5
 MINIMUM_NORMAL_GAZEBO_ADDRESS =4097
 
-PACKET_TYPE_ADDRESS_SET = 2
-PACKET_TYPE_PARAMETER_INFO_REQUEST = 6
-PACKET_TYPE_SLAVE_DATA_REQUEST = 4
+##Giant list of packet type data
 PACKET_TYPE_SLAVE_PRESENCE_DETECT_REQUEST = 0
-PACKET_TYPE_PARAMETER_READ = 8
+PACKET_TYPE_ADDRESS_SET = 2
+PACKET_TYPE_SLAVE_DATA_REQUEST = 4
 PACKET_TYPE_SLAVE_ERROR = 5
+PACKET_TYPE_PARAMETER_INFO_REQUEST = 6
+PACKET_TYPE_PARAMETER_READ = 8
 PACKET_TYPE_WRITE = 10
 PACKET_TYPE_INFORMATION_BROADCAST = 16
 PACKET_TYPE_SAVE_NONVOLATILE = 22
 
+##List of indexes into parameter descriptor strings after unCSVing
 PARAMETER_DESCRIPTOR_NAME_INDEX = 0
 PARAMETER_DESCRIPTOR_TYPE_INDEX = 1
 PARAMETER_DESCRIPTOR_INTERPETATION_INDEX = 2
 PARAMETER_DESCRIPTOR_ARGUMENTS_INDEX = 3
 PARAMETER_DESCRIPTOR_FLAGS_INDEX = 4
-PARAMETER_DESCRIPTOR_GROUP_CLASS_INDEX = 7
 PARAMETER_DESCRIPTOR_GROUP_ROLE_INDEX = 5
 PARAMETER_DESCRIPTOR_GROUP_NAME_INDEX = 6
+PARAMETER_DESCRIPTOR_GROUP_CLASS_INDEX = 7
 PARAMETER_DESCRIPTOR_DESCRIPTION_INDEX = 8
 
-SLAVE_DESCRIPTOR_TOTAL_PARAMETERS_INDEX = 4
+SLAVE_DESCRIPTOR_FIRMWARE_VERSION_INDEX = 0
 SLAVE_DESCRIPTOR_SLAVE_NAME_INDEX = 1
+SLAVE_DESCRIPTOR_TOTAL_PARAMETERS_INDEX = 4
+
 
 #Set up the CRC calc used to check the validity of Gazebo packets. [Baicheva00],0 initial, no bitreversal, 0 xor
 def CRC16(data):
@@ -63,10 +66,17 @@ def CRC16(data):
 def GazeboArgumentsStringToListOfNamedTuples(gstring):
     """Convert a gazebo argument string to a list of (name,type,interpretation) tuples.
      Will not actually validate the string, hopefully the device supplies a correct one"""
+     
+     
     GazeboReadArgument = collections.namedtuple('GazeboReadArgument',['name','type','interpretation'])
+    
+    #Get rid of the brackets, they are just syntax crap on the slave
     gstring = gstring.replace('[','').replace(']','')
+    #Split on semicolons because once we get rid of the brackets its essentally a semicolon separated list
     s = gstring.split(';')
     
+    
+    #If there is no arguments required, there will be no semicolons and thus len(1) after parsing.
     if (len(s)==1):
        return []
     #[[a;b;c];[a;b;c]]
@@ -75,6 +85,8 @@ def GazeboArgumentsStringToListOfNamedTuples(gstring):
     if not ( (len(s) % 3) == 0):
         raise ValueError('Does not appear to be a valid Gazebo Arguments List')
     v = []
+
+    #Iterate with step size 3 to divide s into tuples of three.
     for i in range(0,len(s),3):
         g = GazeboReadArgument(s[i],s[i+1],s[i+2])
         v.append(g)
@@ -104,7 +116,6 @@ class GazeboPacket():
         
         #add our new bytes to the internal buffer
         self._internalbuffer.extend(bytes)
-        
         #if we have at least one byte check if its a short packet code
         if len(self._internalbuffer) > 0:
             if self._internalbuffer[0] in GAZEBO_SHORT_PACKETS:
@@ -113,12 +124,15 @@ class GazeboPacket():
                     self.address = "SHORT"
                     if self._internalbuffer[0] == 0x30:
                         self.data = False
+                        return 1  
                     if self._internalbuffer[0] == 0x31:
                         self.data = True
-                    if self._internalbuffer[0] == 0x06:
+                        return 1                        
+                    if self._internalbuffer[0] == 6:
                         self.data = 'ACK'
-                    return 1
-                    
+                        return 1
+                return -1#Packets can't start with anything but 0x55
+            
         #if we have at least the minimum data any packet can have.
         if len(self._internalbuffer) > 6:
             #Look up the length the packet says it has and see if we have that many bytes
@@ -151,7 +165,8 @@ class GazeboPacket():
         return r
 
 class Gazebo_Slave(object):
-    """Class representing one gazebo slave. When you initialize it with a manager, UUID, and address, it will automatically figure the rest out."""
+    """Class representing one gazebo slave. When you initialize it with a manager, UUID, and address, 
+    it will automatically figure the rest out, by asking the the actual slave device for information."""
     def __init__(self, manager ,UUID,address):
     
         self.id = UUID
@@ -162,6 +177,7 @@ class Gazebo_Slave(object):
         
         SlaveDescriptor = ''
         for i in range(0,255):
+            #Create a packet and send it
             g.address = self.address
             g.type = PACKET_TYPE_SLAVE_DATA_REQUEST
             g.data = bytearray([i])
@@ -174,6 +190,7 @@ class Gazebo_Slave(object):
             #Remove bytes after the null and don't include the null because python doesn't use null termination
             dat = bytearray([])
             
+            #Get rid of the null terminator
             for j in n.returndata:
                 if not j == 0:
                     dat.append(j)
@@ -182,11 +199,12 @@ class Gazebo_Slave(object):
             
             SlaveDescriptor = SlaveDescriptor + dat.decode('utf-8')
             
-            if 0x00 in n.returndata:
+            if 0 in n.returndata:
                 break #The page with the nul is the last page
         
         sd = SlaveDescriptor.split(',')
-        
+        self.name = sd[SLAVE_DESCRIPTOR_SLAVE_NAME_INDEX]
+        self.fwversion = sd[SLAVE_DESCRIPTOR_FIRMWARE_VERSION_INDEX]
         #For each parameter the slave says it has, ask about it nd create the appropriate object
         for i in range(int(sd[SLAVE_DESCRIPTOR_TOTAL_PARAMETERS_INDEX])):
             n = NetworkParameter()
@@ -210,6 +228,7 @@ class Gazebo_Slave(object):
             n.grouprole = pd[PARAMETER_DESCRIPTOR_GROUP_ROLE_INDEX]
             n.groupname = pd[PARAMETER_DESCRIPTOR_GROUP_NAME_INDEX]
             n.groupclass = pd[PARAMETER_DESCRIPTOR_GROUP_CLASS_INDEX]
+            n.description = pd[PARAMETER_DESCRIPTOR_DESCRIPTION_INDEX]
             n.arguments = GazeboArgumentsStringToListOfNamedTuples(pd[PARAMETER_DESCRIPTOR_ARGUMENTS_INDEX])
             
             n._datainterpreter = GazeboDataFormatConverter(n.type)
@@ -221,7 +240,7 @@ class Gazebo_Slave(object):
                 n._argumentconverters.append(GazeboDataFormatConverter(j.type))
             n.name = pd[PARAMETER_DESCRIPTOR_NAME_INDEX]
             self.params[pd[PARAMETER_DESCRIPTOR_NAME_INDEX]] = n
-            self.name = sd[SLAVE_DESCRIPTOR_SLAVE_NAME_INDEX]
+
             
     def __repr__(self):
         return('<Gazebo Slave '+ self.name + ' with ID ' + base64.b64encode(self.id)[:16].decode() + ">")
@@ -237,17 +256,36 @@ class Gazebo_Slave(object):
          n.data = b
          n.expect = 'gazebopacket'
          return n.Send()
-
+         
+    def GetInstances(self,groupclass):
+        """Get a dict of dicts of parameters where the outer dict is indexed by group name and the inner by role"""
+        output = {}
+        
+        #Iterate over params
+        for i in self.params:
+            #Ignore params without the proper group class
+            if i.groupclass == groupclass:
+                #If there is not already a dict of params for this group instance make one
+                if not (i.groupname in output):
+                    output[i.groupname] = {}
+                #Add the param to the group instance dict with its group role as its key
+                output[i.groupname][i.grouprole] = i
+                
+        return output
+        
 class NetworkManager(object):
     """Manage the serial port, enumeration of slaves, and discovery of resources. also manage
     request queuein and resource sharing between threads"""
     
     def __init__(self,comport):
         self.comport = serial.Serial(comport)
+        #Setup the request queue
         self.requestqueue = queue.Queue()
         self.slaves = {}
-        self.highestunusedaddress = 5000 #Because of reserved area
-        t = threading.Thread(target = self._HandleRequestQueue)
+        self.highestunusedaddress = 5000 #Because of reserved area in the address space
+        self.retrylimit = 16
+        #All the actual network stuff is going to happen in a new thread
+        t = threading.Thread(target = self.__HandleRequestQueue)
         t.start()
 
     def __del__(self):
@@ -258,10 +296,12 @@ class NetworkManager(object):
         self.comport.close()
         
     #This goes and loops in its own thread and waits for new data to come into the request queue
-    def _HandleRequestQueue(self):
+    def __HandleRequestQueue(self):
         while self:
             thisrequest = self.requestqueue.get()
             self.comport.write(thisrequest.data)
+            self.comport.flush() #Wait till all written
+            self.comport.read(self.comport.inWaiting())#Flush the whole recieve buffer in case we are on an rs485 line
             
             #Try to understand what the request object expects to recieve
             if isinstance(thisrequest.expect,list):
@@ -276,27 +316,38 @@ class NetworkManager(object):
             if thisrequest.expect == 'gazebopacket':
                 start = time.time()
                 f = GazeboPacket()
-                
-                #Don't sit there waiting for data for more than 5 seconds.
-                self.comport.timeout = 5
-                while(time.time()-start)<5:
+                t = 0
+                self.comport.timeout = 0.3 #Max time between bytes
+                while(time.time()-start)<10:#Max total packet time
                     #Check if a complete packet has been recieved
-                    t = f.ParseBytes(self.comport.read())
+                    
+                    x = self.comport.read()
+                    if x == b'': #If a read with timeout 0.3 does not return anything
+                        break;   #Stop looking because responses must start within 10ms and not have
+                                 #more than a byte time of silence so 0.3 is a big margin.
+                                 
+                    t = f.ParseBytes(x)
                     if not t == 0:
                         #Break if a complete packet is here or if a known bad packet is here
                         break;
                      
                 #If no packet or a known bad packet
                 if t == -1 or t == 0:
-                    thisrequest.returndata = None
-                    thisrequest.LockedWhileNotCompleted.set()
+                    if thisrequest.retries > 0: #Retry up to the maximum number of attemts.
+                        if thisrequest.retries > self.retrylimit:
+                            thisrequest.retries = self.retrylimit
+                            thisrequest.retries -= 1
+                            self.requestqueue.put(thisrequest)
+                    else: #If we have used up our maximum number of retries, return None
+                        thisrequest.returndata = None
+                        thisrequest.LockedWhileNotCompleted.set()
                 #If a correct gazebo packet is here
                 if t == 1:
                     thisrequest.returndata = f.data
                     thisrequest.fullpacket = f
                     thisrequest.LockedWhileNotCompleted.set()
                     
-            thisrequest.LockedWhileNotCompleted.set()#Failsafe, handles the case of none
+            thisrequest.LockedWhileNotCompleted.set()#Failsafe, handles the case of expect==none
                     
                     
     
@@ -341,9 +392,26 @@ class NetworkManager(object):
                 break
                 
     
-    
+    def GetDevicesNamed(self,name):
+        """Get all devices with the specified device name"""
+        matchingslaves = {}
+        for slave in self.slaves:
+            if slave[key].name == name:
+                matchingslaves[slave.id] = slave
+        return matchingslaves
+                
+    def GetDevicesImplementing(self,NameOfGroupClass):
+        """Get all devices implementing the specified group"""
+        matchingslaves = {}
+        for slave in self.slaves:
+            if slave.groupclass == NameOfGroupClass:
+                matchingslaves[slave.id] = slave
+        return matchingslaves
+                
     def DetectSlavePresence(self,UUID,matchlength = 128,connected = 'unassigned'):
-    
+        """Returns true if there is a slave at the specified UUID. 
+        Allows partial matching and matching devices that have not been given an ID"""
+        
         mask = bytearray(16)
         #Create an array of N 0ne bits followed by 128-N Zero bits
         for i in range(matchlength):
@@ -365,7 +433,7 @@ class NetworkManager(object):
         n = NetworkRequest(self)
         n.data = g.toBytes()
         #We are not expecting a packet in return. We are expectng garbage as many nodes send thier responses.
-        #All we want to know is if at least one device responded. So we listen for 50ms.
+        #All we want to know is if at least one device responded. So we listen for 23ms.
         n.expect = ['time',0.023]
         n.Send()
         if len(n.returndata) >0:
@@ -377,38 +445,52 @@ class NetworkManager(object):
         
         
     def SendInformationBroadcast(self,key,data,formatstring = None):
-                """Send an information broadcast to all slaves connected or not.
-                  if the optional formatstring is a valid gazebo format string,
-                  will attempt to convert the input data according to it. Otherwise you must provide the raw bytes"""
-                
-                if not (formatstring == None):
-                   i = GazeboDataFormatConverter(formatstring)
-                   data = i.PythonToGazebo(data)
-                   
-                g = GazeboPacket()
-                g.address = 0
+        """Send an information broadcast to all slaves connected or not.
+          if the optional formatstring is a valid gazebo format string,
+          will attempt to convert the input data according to it. Otherwise you must provide the raw bytes"""
+        
+        if not (formatstring == None):
+           i = GazeboDataFormatConverter(formatstring)
+           data = i.PythonToGazebo(data)
+           
+        g = GazeboPacket()
+        g.address = 0
 
-                #Pad with zeros till 8 chars, or truncate at 8.
-                k = bytearray(8)
-                j =0
-                for i in key.encode('utf-8'):
-                   k[j]=i
-                   j+=1
-                   
-                g.data = k + data
-                g.type = PACKET_TYPE_INFORMATION_BROADCAST
-                b = g.toBytes()
-                n = NetworkRequest(self)
-                n.data = b
-                n.expect = None
-                n.Send(7)
+        #Pad with zeros till 8 chars, or truncate at 8.
+        k = bytearray(8)
+        j =0
+        for i in key.encode('utf-8'):
+           k[j]=i
+           j+=1
+           
+        g.data = k + data
+        g.type = PACKET_TYPE_INFORMATION_BROADCAST
+        b = g.toBytes()
+        n = NetworkRequest(self)
+        n.data = b
+        n.expect = None
+        n.Send(7)
     
-    def SendTimeInfo(self):
-                t = time.locatime()
-                self.SendInformationBroadcast('YEAR',struct.pack('<H',t[0]))
-                self.SendInformationBroadcast('MONTH',struct.pack('<B',t[1]))
-                self.SendInformationBroadcast('MONTH',struct.pack('<B',t[1]))
-                    
+    # def SendTimeInfo(self):
+                # t = time.localtime()
+                # self.SendInformationBroadcast('YEAR',struct.pack('<H',t[0]))
+                # self.SendInformationBroadcast('MONTH',struct.pack('<B',t[1]))
+                # self.SendInformationBroadcast('MONTH',struct.pack('<B',t[3]))
+                # self.SendInformationBroadcast('MONTH',struct.pack('<B',t[2]))
+                
+    def ForceAddOneSlave(self,slaveUUID):
+        """Check for a slave based on the unique ID of that slave. If found return true and add that slave to
+        The slave dict.
+        """
+    
+        if slaveUUID in self.slaves:
+            return True
+        if DetectSlavePresence(slaveUUID):
+            s = GazeboSlave(self,slaveUUID,self.highestunusedaddress)
+            self.highestunusedaddress +=1
+            return True
+        else:
+            return False
 
 #A simple class encapsulating an arbitrary request of the network, in terms of data to be sent
 #And data to be expected. manager must be a SerialManager or derivative.
@@ -419,11 +501,12 @@ class NetworkRequest(object):
       when Send is called, the data in self.data will be sent using the selected network manager.
       if expect is 'gazebopacket', the data from the response wil be found in self.returndata
       The entire gazebo packet object will be found in fullpacket. """
-    def __init__(self,manager, data = None, expect = ["time",1]):
+    def __init__(self, manager, data = None, expect = ["time",1]):
         self.manager = manager
         self.data = data
         self.expect = expect
         self.LockedWhileNotCompleted = threading.Event()
+        self.retries = 0
         
         
     def Send(self,priority ="7",block = True):
@@ -445,11 +528,13 @@ class NetworkParameter(object):
       self.LastUpdated = 0
       self.expires =0.1 #Default to read-idempotent parameters being cached for a tenth of a second
       
-    def Read(self, *args):
+    def __call__(self, *args): #NetworkParameter is callable, and calling it is an alias for read.
+        return self.read(*args)
+      
+    def read(self, *args):
         """Returns the value of the parameter. Will use the cached value if possible."""
-        
         #Check if we can avoid making the request by just returning the cached value.
-        if not self._fresh():
+        if not self.fresh():
             g = GazeboPacket()
             g.data = bytearray(struct.pack("<B",self.paramnumber))
             j = 0
@@ -482,7 +567,7 @@ class NetworkParameter(object):
         else:
             return self.CachedValue
             
-    def Write(self,data):
+    def write(self,data):
         """Write data to a parameter. Data must be of a format that is compatibe with the devices expected type."""
         
         #Translate the input data to gazebo's format, prepend the parameter number
@@ -506,7 +591,7 @@ class NetworkParameter(object):
         else:
             return False
     
-    def _fresh(self):
+    def fresh(self):
         """Internal function used to determine if the cached value is still good."""
         #Not-Idempotent values are not cacheable
         if not 'i' in self.flags:
@@ -520,6 +605,8 @@ class NetworkParameter(object):
             
         #Early return pattern
         return True
+    def pinfo(self):
+        print(self.info())
         
     def info(self):
     #Make a human readable report of this parameter
@@ -538,11 +625,12 @@ class NetworkParameter(object):
         if len(self.arguments) == 0:
             string += 'No arguments are required when reading from this parameter\n'
         else:
-            print('The following arguments are required when reading from this parameter(in first to last order):\n')
-            for i in GazeboArgumentsStringToListOfNamedTuples(self.arguments):
-                print (i)
-                print ('\n')
-        
+            string+=('The following arguments are required when reading from this parameter(in first to last order):\n')
+            for i in self.arguments:
+                string+= repr(i)
+                string+= ('\n')
+        if '!' in self.flags:
+            string += '***CAUTION!! ACHTUNG!! USE CARE WHEN MESSING WITH THIS PARAMETER. THE DEVICE HAS MARKED IT AS CRITICAL.***\n'
         if 's' in self.flags:
             string += 'Reads have side effects.\n'
         if 'S' in self.flags:
@@ -557,10 +645,11 @@ class NetworkParameter(object):
             string += 'This is a message-wise FIFO. Reads will return the one(1) oldest item and likewise for writes.\n'
         if 'n' in self.flags:
             string += 'This parameter can be saved to nonvolatile memory.\n'
-        if '!' in self.flags:
-            string += 'CAUTION!! ACHTUNG!! USE CARE WHEN MESSING WITH THIS PARAMETER. THE DEVICE HAS MARKED IT AS CRITICAL.\n'
+        
+        string += '\n\nThe slave provides the following description of ths parameter:'
+        string += self.description
             
-        print(string)
+        return string
 
     def __repr__(self):
         return('<Parameter Object ' + self.name + ' of type ' + self.type + ' with interpretation ' +self.interpretation + '>')
@@ -568,22 +657,34 @@ class NetworkParameter(object):
 def GazeboDataFormatConverter(formatstring):
     """Create some specialized sublclass of BaseGazeboDataConverter toconvert to and from binary data according to
     the format string."""
+
+   #void types have a very simple converter
+    if formatstring.startswith('void'):
+       return GazeboVoidConverter()
+      
+    #Detect enum types
     if formatstring.startswith('enum'):
+        #If this is an array of enum, it will have at leat one [
         if '[' in formatstring:
+            #GazeboArrayofEnumConverter also does nested arrays
             return GazeboArrayofEnumConverter(formatstring)
         else:
             return GazeboEnumConverter(formatstring)
     
+    #TODO add array of string support
     if formatstring.startswith('UTF-8'):
         return GazeboStringConverter(formatstring)
-    
+        
+    #If we got ths far it is not a string or an enum, so if it has a brace, it is probable an array of numbers
     if '[' in formatstring:
+        #GazeboArrayofNumbersConverter also does nested arrays
         return GazeboArrayofNumbersConverter(formatstring)
     else:
+    #No brace, not enum or string, probably a single number.
         return GazeboNumberConverter(formatstring)
-    
-    
-    
+      
+
+ 
 class BaseGazeboDataConverter():
     """Base class providing functionality for interpreting gazebo types. May not be instatiated.
     The API is that you pass the gazebo format string from the parameter descriptor to the constructor of a subclass
@@ -599,7 +700,7 @@ class BaseGazeboDataConverter():
         raise NotImplementedError
 
     def GazeboToPython(self,data):
-        """This must return relevalt python data"""
+        """This must return relevant python data"""
         raise NotImplementedError
     def PythonToGazebo(self,data):
        """This must return a bytestring"""
@@ -666,10 +767,12 @@ class BaseGazeboDataConverter():
        return temp[0]
         
     def RecursiveNestedListSerialize(self,inputdata):
-       """collapse a nested array to a single array. e.g. convert [[1,2],[3,4]] to [1,2,3,4]"""
+       """collapse a nested array to a single array. e.g. convert [[1,2],[3,4]] to [1,2,3,4]
+          Basically recursively walks a tree of lists and returns one big list of things that are not lists.
+       """
 
        outer = []
-       #Go through the input and add anything that is not iterable to the list
+       #Go through the input and add anything that is not itself a list to the list
        #Anything that is iterable gets all of its contents added after first going through this function.
        for i in inputdata:
           if isinstance(i,list):
@@ -746,27 +849,32 @@ class GazeboEnumConverter(BaseGazeboDataConverter):
         temp = temp.split('{')[1] #Get just the enum list
         temp = temp.split('}')[0] #Remove trailing close bracket to get raw csv
         
-        temp = temp.split(';')   #Get the list of possibilities
+        temp = temp.split('|')   #Get the list of possibilities
     
+        #Create a dict mapping enumeration keys to values.
         self._enumtovalues = {}
         j=0
         for i in temp:
             self._enumtovalues[i] = j
             j+=1
-            
+        
+        #Now make a dict mapping values back to enumeration keys
         self._valuetoenum = {}
         j=0
         for i in temp:
             self._valuetoenum[j] = i
             j+=1
-        #All gazebo enums are based on unsigned chars
+        #All gazebo enums are based on unsigned chars, so set the structformat as appropriate
         self._structformat = '<B'
     
     def GazeboToPython(self, data):
         return self._valuetoenum[struct.unpack(self._structformat,data)[0]]
     
     def PythonToGazebo(self,data):
-        return struct.pack(self._structformat,self._enumtovalues[data])
+       if isinstance(data,int):
+          return bytearray([data])
+         
+       return struct.pack(self._structformat,self._enumtovalues[data])
     
 class GazeboArrayofEnumConverter(GazeboEnumConverter):
     
@@ -795,12 +903,81 @@ class GazeboArrayofEnumConverter(GazeboEnumConverter):
         
         #Flatten the list, than structify it and return it
         for i in self.RecursiveNestedListSerialize(data):
-            t.extend(struct.pack(self._structformat,self._enumtovalues[i]))
+           if isinstance(i,int):
+              t.append(i)
+           else:
+               t.extend(struct.pack(self._structformat,self._enumtovalues[i]))
             
         return t
-    
-    
-    
-    
-    
-    
+   
+class GazeboVoidConverter(BaseGazeboDataConverter):
+   def __init__(self):#Override
+      pass
+   def PythonToGazebo(self,data):
+      return b''
+   def GazeboToPython(self,data):
+      return True
+
+        
+# def CreateGazebeException(ErrorCode,ExtraData = ''):
+    # if ErrorCode == 0:
+        # return GazeboError(ExtraData)
+    # if ErrorCode == 0:
+        # return GazeboError(ExtraData)
+    # if ErrorCode == 0:
+        # return GazeboError(ExtraData)
+        
+# class GazeboError(Exception):
+        
+        # def __init__(self,description):
+           # self.value = value
+        # def __str__(self):
+           # return repr(self.value)
+           
+# class GazeboNonexistantParameterError(GazeboError):
+        # def __init__(self,description,parameter = None):
+           # self.value = 'Too short data string to write to parameter'
+        # def __str__(self):
+           # return repr(self.value)
+
+# class GazeboTooShortDataWriteError(GazeboError):
+        # def __init__(self,description,parameter = None):
+           # self.value = 'Too short data string to write to parameter'
+        # def __str__(self):
+           # return repr(self.value)
+           
+# class GazeboTooLongDataWriteError(GazeboError):
+        # def __init__(self,description,parameter = None):
+           # self.value = 'Too long data string to write to parameter'
+        # def __str__(self):
+           # return repr(self.value)
+           
+# class GazeboTooManyGroupsError(GazeboError):
+        # def __init__(self,description,parameter = None):
+           # self.value = 'The device cannot join any more groups without quitting at least one'
+        # def __str__(self):
+           # return repr(self.value)
+           
+# class GazeboTooLittleArgumentDataError(GazeboError):
+        # def __init__(self,description,parameter = None):
+           # self.value = 'Too short data string as argument(s) to parameter read operation'
+        # def __str__(self):
+           # return repr(self.value)
+           
+# class GazeboTooMuchArgumentDataError(GazeboError):
+        # def __init__(self,description,parameter = None):
+           # self.value = 'Too long data string as argument(s) to parameter read operation'
+        # def __str__(self):
+           # return repr(self.value)
+
+# class GazeboInvalidDataError(GazeboError):
+        # def __init__(self,description,parameter = None):
+           # self.value = 'Data sent was rejected by slave as invalid'
+        # def __str__(self):
+           # return repr(self.value)
+           
+# class GazeboInvalidDataError(GazeboError):
+        # def __init__(self,description,parameter = None):
+           # self.value = 'Data sent was rejected by slave as invalid'
+        # def __str__(self):
+           # return repr(self.value)

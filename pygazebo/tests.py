@@ -46,9 +46,9 @@ if n.GazeboToPython(b'1234') == '1234':
 else:
     fail()
 ###
-case('enum{a;b;c;de;fgh}')
+case('enum{a|b|c|de|fgh}')
 
-n = PyGazebo.GazeboDataFormatConverter('enum{a;b;c;de;fgh}')
+n = PyGazebo.GazeboDataFormatConverter('enum{a|b|c|de|fgh}')
 
 if n.PythonToGazebo('a') == b'\x00':
     succeed()
@@ -144,9 +144,9 @@ else:
 
     
 ###########
-case('enum{a;b;c;de;fgh[2]}')
+case('enum{a|b|c|de|fgh[2]}')
 
-n = PyGazebo.GazeboDataFormatConverter('enum{a;b;c;de;fgh}[2]')
+n = PyGazebo.GazeboDataFormatConverter('enum{a|b|c|de|fgh}[2]')
 
 if n.PythonToGazebo(['a','b']) == bytearray([0,1]):
     succeed()
