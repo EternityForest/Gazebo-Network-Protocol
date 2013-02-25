@@ -75,7 +75,7 @@ const struct Parameter Gazebo_Parameters[]=
 
   {
     0,PinModeHandler,0000,   2,         2 ,         (FLAG_READ)
-      ,"PinMode,void,void,[[pin;uint8;number];[mode;enum{output|input|input_pullup};mode],ri,none,none,none,Use ~460Hz PWM to write an analog value to a pin.,{}"
+      ,"PinMode,void,void,[[pin;uint8;number];[mode;enum{output|input|input_pullup};mode],ris,none,none,none,Use ~460Hz PWM to write an analog value to a pin.,{}"
     }
     ,
   {
@@ -99,7 +99,7 @@ const struct Parameter Gazebo_Parameters[]=
 
   {
     0,AnalogWriteHandler,0000,   2,         2 ,         (FLAG_READ)
-      ,"AnalogWrite,void,void,[[pin;uint8;number];[value;uint8;duty*255]],ri,none,none,none,Use ~460Hz PWM to write an analog value to a pin.,{}"
+      ,"AnalogWrite,void,void,[[pin;uint8;number];[value;uint8;duty*255]],ris,none,none,none,Use ~460Hz PWM to write an analog value to a pin.,{}"
     }
     ,
 
