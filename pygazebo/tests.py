@@ -1,4 +1,4 @@
-import PyGazebo
+import gazebo_protocol
 
 failures = 0
 sucesses = 0
