@@ -300,7 +300,6 @@ class NetworkManager(object):
         while self:
             thisrequest = self.requestqueue.get()
             self.comport.write(thisrequest.data)
-            self.comport.flush() #Wait till all written
             self.comport.read(self.comport.inWaiting())#Flush the whole recieve buffer in case we are on an rs485 line
             
             #Try to understand what the request object expects to recieve
@@ -485,7 +484,7 @@ class NetworkManager(object):
     
         if slaveUUID in self.slaves:
             return True
-		slaveUUID = (slaveUUID+'==').decode()
+            slaveUUID = (slaveUUID+'==').decode()
         if self.DetectSlavePresence(slaveUUID):
             s = GazeboSlave(self,slaveUUID,self.highestunusedaddress)
             self.highestunusedaddress +=1
