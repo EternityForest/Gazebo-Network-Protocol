@@ -107,7 +107,8 @@ class GazeboPacket():
     def __init__(self):
         """Create a new GazeboPacket"""
         self._internalbuffer = bytearray([])
-
+        self.type = 5 #default to the error type
+        self.data = b'\x00No Packet'
     
     def ParseBytes(self,bytes):
         """Attempt to decode a stream of bytes into a packet. 
@@ -275,10 +276,12 @@ class Gazebo_Slave(object):
         
 class NetworkManager(object):
     """Manage the serial port, enumeration of slaves, and discovery of resources. also manage
-    request queuein and resource sharing between threads"""
+    request queuein and resource sharing between threads. set HasEcho=True for half duplex lines where you hear everything you send."""
     
-    def __init__(self,comport):
+    def __init__(self,comport,HasEcho = False):
         self.comport = serial.Serial(comport)
+        self.comport.timeout = 10
+        self.MediumHasEcho = HasEcho
         #Setup the request queue
         self.requestqueue = queue.Queue()
         self.slaves = {}
@@ -300,8 +303,11 @@ class NetworkManager(object):
         while self:
             thisrequest = self.requestqueue.get()
             self.comport.write(thisrequest.data)
-            self.comport.read(self.comport.inWaiting())#Flush the whole recieve buffer in case we are on an rs485 line
-            
+            if self.MediumHasEcho:
+               self.comport.timeout = 25
+               self.comport.read(len(thisrequest.data))#Clear all the stuff in the buffer if we are on a half duplex line where we recieve what we send
+
+            time.sleep(0.0015)
             #Try to understand what the request object expects to recieve
             if isinstance(thisrequest.expect,list):
                 if thisrequest.expect[0] == 'time':
@@ -320,7 +326,8 @@ class NetworkManager(object):
                 while(time.time()-start)<10:#Max total packet time
                     #Check if a complete packet has been recieved
                     
-                    x = self.comport.read()
+                    x = self.comport.read(max(self.comport.inWaiting(),1))#If there are no bytes in waiting we need to wait for
+                                                                          #one or else the whole thing will return and thing there is no packet
                     if x == b'': #If a read with timeout 0.3 does not return anything
                         break;   #Stop looking because responses must start within 10ms and not have
                                  #more than a byte time of silence so 0.3 is a big margin.
@@ -557,6 +564,8 @@ class NetworkParameter(object):
                 
             #If we got a valid value back
             if (not (temp == None)):
+                if r.fullpacket.type == 5:
+                    raise ValueError('Slave says something went wrong, errordata:' + str(r.returndata))
                 temp = self._datainterpreter.GazeboToPython(temp)
                 self.CachedValue = temp
                 self.LastUpdated = time.time()
