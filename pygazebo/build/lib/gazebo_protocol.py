@@ -485,7 +485,6 @@ class NetworkManager(object):
     
         if slaveUUID in self.slaves:
             return True
-		slaveUUID = (slaveUUID+'==').decode()
         if self.DetectSlavePresence(slaveUUID):
             s = GazeboSlave(self,slaveUUID,self.highestunusedaddress)
             self.highestunusedaddress +=1

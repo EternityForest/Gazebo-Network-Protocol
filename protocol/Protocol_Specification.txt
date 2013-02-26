@@ -6,7 +6,7 @@ Creation-Date: 2013-01-01T13:06:41-08:00
 Created Tuesday 01 January 2013
 
 (c) 2013 Daniel Black.
-Version 0.32
+Version 0.33
 This work is licensed under a Creative Commons Attribution 3.0 Unported License.
 
 
@@ -111,7 +111,7 @@ Allowing unique user-defined group classes allows, for example, a maker of chall
 Slave devices do not have "device profiles" as a device profile can easily be replaced with a group class. Group classes may be more flexible in that they allow a device to implement multiple inheritance simple by implementing two distinct group classes without resorting to ideas of multiple endpoints.
 
 ==== Multicasting ====
-Multicast addressing is an integral part of the protocol, and at any time the master may command a device to join a group or quit a group. Group addresses are taken from the same address space as any other address, and slaves must respond to multicast requests exactly as the would direct requests. All slaves must be able to listen to at least 4 groups addresses.
+broadcasting and multicast addressing is an integral part of the protocol, and at any time the master may command a device to join a group or quit a group. Group addresses are taken from the same address space as any other address, and slaves must take the same action when given a multicast command as they would when given a direct request. All slaves must be able to listen to at least 4 groups addresses.
 
 ==== Error Reporting ====
 A slave may respond to any request with an Slave Error Packet.
@@ -317,7 +317,6 @@ Page 1 would by bytes 0-247
 Page 2 would be bytes 248-496
 etc. until the last page which may be less than 248 bytes long and must have a null terminator as the last byte.
 
-1 2 3 4 5 6 7 8 
 
 === 6:Parameter Information Request ===
 (Required for all slaves to handle)
@@ -818,10 +817,6 @@ The voltage as sensed by the master which is likely also the power supply in mil
 
 ==== LANGUAGE ====
 A comma separated list of preferred languages specified as ISO 639-2 codes from most to least preferred.
-	
-
-==== SAFE ====
-An ASCII codeword used to arm or disarm critical equipment.
 
 ===== Additional Attributes =====
 
@@ -887,6 +882,10 @@ While Gazebo was designed to be highly reliable, implementers must use the proto
 
 ==== Multiple Baud Rates ====
 The use of multiple baud rates on the bus could cause the device running at the lower baud rate to see an 0x55 when none was sent. Should random line noise or higher bad rate transmissions cause a device to see a valid packet type, preamble, address, data length, and data, undefined operation may result. This is unlikely to occur due to multiple layers of integrity checking, however only a single baud rate should be used if reliability is important.
+
+This will not cause problems when commanding devices individually to change to a higher baud rate if you do not send any commands at the new higher baud rate until all devices have changed to it, because it is not possible for any other data sent at a lower baud rate to appear as an 0x55(which contains the maximum number of transitions) at a higher rate if the higher rate is at least twice the lower rate.
+
+This will also not cause any problems commanding a device to change to the next lower baud rate as long as you wait for at least 3*the byte time of the slowest rate, or 10ms, whichever is higher, as the baud rate set command is 8 bytes long, and 8 bytes will appear as at most 4 bytes at any lower baud rate that is less than half the rate. When the acknowledgememt arrives, it will appear as at most 1 additional byte. Therefore the slave at the lower baud rate will see at most 6 bytes, which is not enough for a valid long packet, and therefore will be seen as 5
 
 ==== Acknowledgment ====
 The use of a one-byte acknowledgment sequence creates the problem that random line noise could coincidentally contain the ACK character and coincidentally appear within the timeout just after the master sends a Write Request, causing the master to think the command was successful even if it was not. Even though the chances of this occurring are low, very important write operations like bootloaders should use some form of readback validation rather than depending on the built in acknowledgment features.

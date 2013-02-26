@@ -10,7 +10,7 @@ This work is licensed under a Creative Commons Attribution 3.0 Unported License.
 
 ===== Introduction =====
 
-pygazebo depends on crcmod and pyserial, so install those first.
+gazebo_protocol depends on crcmod and pyserial, so install those first.
 
 ===== The NetworkManager object: =====
 
