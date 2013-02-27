@@ -57,11 +57,10 @@ SLAVE_DESCRIPTOR_TOTAL_PARAMETERS_INDEX = 4
 
 
 #Set up the CRC calc used to check the validity of Gazebo packets. [Baicheva00],0 initial, no bitreversal, 0 xor
+crcfun = crcmod.mkCrcFun(0x1c86c, rev = False, xorOut = 0, initCrc = 0)
+
 def CRC16(data):
-   """Take a CRC of the input bytes or bytearray and return it as a bytes object"""
-   c=crcmod.Crc(0x1c86c, rev = False, xorOut = 0, initCrc = 0)
-   c.update(data)
-   return c.digest()
+	return(struct.pack('>H',crcfun(data)))
    
 def GazeboArgumentsStringToListOfNamedTuples(gstring):
     """Convert a gazebo argument string to a list of (name,type,interpretation) tuples.
@@ -280,7 +279,8 @@ class NetworkManager(object):
     
     def __init__(self,comport,HasEcho = False):
         self.comport = serial.Serial(comport)
-        self.comport.timeout = 10
+        self.comport.timeout = 5
+        self.__timeout = 5
         self.MediumHasEcho = HasEcho
         #Setup the request queue
         self.requestqueue = queue.Queue()
@@ -297,6 +297,11 @@ class NetworkManager(object):
     def close(self):
         """Close the underlying comport"""
         self.comport.close()
+
+    def setserialtimeout(self,val):
+            if not (self.__timeout == val):
+                    self.__timeout = val
+                    self.comport.timeout = val
         
     #This goes and loops in its own thread and waits for new data to come into the request queue
     def __HandleRequestQueue(self):
@@ -304,15 +309,14 @@ class NetworkManager(object):
             thisrequest = self.requestqueue.get()
             self.comport.write(thisrequest.data)
             if self.MediumHasEcho:
-               self.comport.timeout = 25
+               self.setserialtimeout(5)
                self.comport.read(len(thisrequest.data))#Clear all the stuff in the buffer if we are on a half duplex line where we recieve what we send
-
-            time.sleep(0.0015)
+               
             #Try to understand what the request object expects to recieve
             if isinstance(thisrequest.expect,list):
                 if thisrequest.expect[0] == 'time':
                     #handle the case where expect reads as many bytes are availible 
-                    self.comport.timeout = thisrequest.expect[1]
+                    self.setserialtimeout( thisrequest.expect[1])
                     thisrequest.returndata = self.comport.read(10000)
                     #let anything waiting for this unblock.
                     thisrequest.LockedWhileNotCompleted.set()
@@ -322,7 +326,7 @@ class NetworkManager(object):
                 start = time.time()
                 f = GazeboPacket()
                 t = 0
-                self.comport.timeout = 0.3 #Max time between bytes
+                self.setserialtimeout(5) #Max time between bytes
                 while(time.time()-start)<10:#Max total packet time
                     #Check if a complete packet has been recieved
                     
@@ -415,7 +419,7 @@ class NetworkManager(object):
         return matchingslaves
                 
     def DetectSlavePresence(self,UUID,matchlength = 128,connected = 'unassigned'):
-        """Returns true if there is a slave at the specified UUID. 
+        """Retu]rns true if there is a slave at the specified UUID. 
         Allows partial matching and matching devices that have not been given an ID"""
         
         mask = bytearray(16)
