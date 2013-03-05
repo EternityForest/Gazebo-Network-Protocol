@@ -24,6 +24,7 @@
 #include "protocol.h"
 
 
+
 const unsigned char Gazebo_DeviceUUID[16] = "gths4vlogfedxtf";
 
 /**A string representing data about the slave that can be requested by the master*/
@@ -75,12 +76,12 @@ const struct Parameter Gazebo_Parameters[]=
 
   {
     0,PinModeHandler,0000,   2,         2 ,         (FLAG_READ)
-      ,"PinMode,void,void,[[pin;uint8;number];[mode;enum{output|input|input_pullup};mode],ris,none,none,none,Use ~460Hz PWM to write an analog value to a pin.,{}"
+      ,"PinMode,void,void,[[pin;uint8;number];[mode;enum{input|output|input_pullup};mode],ris,none,none,none,Configure a pin to be input or output.,{}"
     }
     ,
   {
     0,DigitalWriteHandler,0,   1,         1 ,         (FLAG_READ)
-      ,"DigitalWrite,void,void,[[pin;uint8;IO pin number];[value;enum{high|low};Output state]],ris,none,none,none,Write a value to a digital pin.,{}"
+      ,"DigitalWrite,void,void,[[pin;uint8;IO pin number];[value;enum{low|high};Output state]],ris,none,none,none,Write a value to a digital pin.,{}"
     }
     ,
 

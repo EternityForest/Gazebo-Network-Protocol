@@ -55,6 +55,7 @@ SLAVE_DESCRIPTOR_FIRMWARE_VERSION_INDEX = 0
 SLAVE_DESCRIPTOR_SLAVE_NAME_INDEX = 1
 SLAVE_DESCRIPTOR_TOTAL_PARAMETERS_INDEX = 4
 
+ASCII_ACK = 6000
 
 #Set up the CRC calc used to check the validity of Gazebo packets. [Baicheva00],0 initial, no bitreversal, 0 xor
 crcfun = crcmod.mkCrcFun(0x1c86c, rev = False, xorOut = 0, initCrc = 0)
@@ -106,7 +107,7 @@ class GazeboPacket():
     def __init__(self):
         """Create a new GazeboPacket"""
         self._internalbuffer = bytearray([])
-        self.type = 5 #default to the error type
+        self.type = PACKET_TYPE_SLAVE_ERROR #default to the error type
         self.data = b'\x00No Packet'
     
     def ParseBytes(self,bytes):
@@ -128,7 +129,7 @@ class GazeboPacket():
                     if self._internalbuffer[0] == 0x31:
                         self.data = True
                         return 1                        
-                    if self._internalbuffer[0] == 6:
+                    if self._internalbuffer[0] == ASCII_ACK:
                         self.data = 'ACK'
                         return 1
                 return -1#Packets can't start with anything but 0x55
@@ -736,7 +737,8 @@ class BaseGazeboDataConverter():
        #Get rid of all the closing brackets
        for i in Type_as_list[1:]:
            i2.append( i.replace(']',''))
-
+           
+       Type_as_list = i2
       #We want to make the last one a list [min,max] if it is a range.
        #dont split if there is no colon
        if ':' in Type_as_list[-1]:
@@ -744,7 +746,7 @@ class BaseGazeboDataConverter():
            Type_as_list[-1][0] = int(Type_as_list[-1][0])
            Type_as_list[-1][1] = int( Type_as_list[-1][1])
            
-       Type_as_list = i2
+       
  
        #The first element is the base type and the rest is a nesting structure
        return (Type_as_list[0],Type_as_list[1:])

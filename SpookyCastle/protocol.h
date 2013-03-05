@@ -122,20 +122,27 @@ struct Parameter
   char *descriptor;
 };
 
-
+//The network interface definintion defines these
 extern const struct Parameter Gazebo_Parameters[];
 extern const unsigned char Gazebo_Parameters_Length;
 extern const char Gazebo_SlaveData[];
-extern unsigned char Gazebo_SetBaudRate(unsigned char);
+
+//This must be called from somewhere with each new byte
 extern void OnByteRecieved(unsigned char);
-extern unsigned char CheckInformationBroadcastKey(const char *,const unsigned char *);
 
 
 
-extern  unsigned char GetByteOfUUID(const unsigned char);
+extern  unsigned char GetByteOfUUID(const unsigned char);//Must be defined somewhere in your code
+
+//User code must define these
 extern  void HandleInformationBroadcast(unsigned char*);
 extern void HandleNonvolatileSave();
+extern unsigned char Gazebo_SetBaudRate(unsigned char);
+
+//For the convinence of user code
 extern void SendSlaveDataResponse(const unsigned char *, const unsigned char);
 extern void SendSlaveError( unsigned char,char *);
 extern unsigned char SendErrorIfArgumentStringOutOfBounds(unsigned char,unsigned char,unsigned char);
 extern unsigned char SendErrorIfADataWriteOutOfBounds(unsigned char,unsigned char,unsigned char);
+extern unsigned char CheckInformationBroadcastKey(const char *,const unsigned char *);
+
