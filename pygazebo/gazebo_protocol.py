@@ -760,7 +760,7 @@ class BaseGazeboDataConverter():
            
                #if this level of nesting is variable size check for size in range.
                if isinstance(i, list):
-                   if (len(temp)> int(i[0])) and (len(temp)<int(i[1])):
+                   if (len(temp)>= int(i[0])) and (len(temp)<=int(i[1])):
                        #Variable elements can only be the last element in the nesting
                        return temp
                    else:

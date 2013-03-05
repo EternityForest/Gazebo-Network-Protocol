@@ -6,8 +6,9 @@ Creation-Date: 2013-01-01T13:06:41-08:00
 Created Tuesday 01 January 2013
 
 (c) 2013 Daniel Black.
-Version 0.33
+Version 0.4.4
 This work is licensed under a Creative Commons Attribution 3.0 Unported License.
+
 
 
 ===== Introduction and Statement of Purpose =====
@@ -54,12 +55,13 @@ All numbers are to be interpreted as decimal unless preceded by '0x' in which ca
 === Major ===
 The major revision number indicates a stable release this version is based on. A major release is made when the current specification is stable. Every Major release will attempt to be backwards compatible with every previous Major release. You should design devices to comply with the most recent major release unless a) the device has user-upgradable firmware, or b) the device does not have the hardware resources to support the current version. In that case a previous major version should be used.
 
-Note that every version before V1.0 should be considered an experimental version, and backward compatibility may not exist. with pre-1.0 versions.
+Note that every version before V1.0 should be considered an experimental version, and backward compatibility may not exist with pre-1.0 versions.
 
 === Minor ===
 The minor revision number indicates a change that modifies a feature. Features added since the last Major revision should be considered unstable.
 
-The second digit of the minor revision number indicates changes to the text that do not alter the actual protocol but instead clarify or improve wording.
+=== Trivial ===
+The final part of the minor revision number indicates changes to the text that do not alter the actual protocol but instead clarify or improve wording.
 
 ==== Must and Should ====
 As used in this document, "must" indicates an absolute requirement without which devices are not considered to be compliant. "should" indicates a requirement that may be ignored if engineering practicalities do not allow it to be implemented, but otherwise should not be ignored and should not be considered unimportant.
@@ -438,6 +440,7 @@ This range of packet types has been reserved for device specific messages.
 Messages going to the master should still be odd and messages from the master should still be even.
 
 
+
 ==== Slave may send these ====
 
 === 1: Slave Presence Declaration ===
@@ -705,8 +708,7 @@ IEEE float
 === int32 ===
 
 === enum{FirstPossibleValue|SecondPossibleValue;etc} ===
-An enumeration similar to C enumerations. Between the brackets can be any number for 0 to 255 of pipe separated identifiers which may not contain spaces or commas or brackets.
-This should be considered exactly the same as a uint8 with additional semantics attached. Keep in mind parameter description strings are limited to 248 bytes total.
+An enumeration similar to C enumerations. Between the brackets can be any number for 0 to 255 of pipe separated identifiers which may not contain spaces or commas or brackets. This should be considered exactly the same as a uint8 with additional semantics attached. Keep in mind parameter description strings are limited to 248 bytes total.
 
 === UTF-8 ===
 Alias of ''uint8'', used to indicate that this should be interpreted as a string. Null terminators should not be sent.
@@ -720,30 +722,11 @@ A write to a float[0:50] array may contain 0 to 50 floats, and a read to a float
 
 Multidimensional arrays are considered arrays of arrays, and only the last element may be variable. the syntax for a multidimensional array is basetype[a][b], representing b arrays of size a. any number of dimensions is allowed. uint8[10][0:10] would be valid whereas uint8[1:5][10] would not. 
 
-The actual transmission format for a multidimensional array is to send each element of the first array, then each element of the second array, and so on. We essentially treat the array as a basetype and send an array of it, which may further be considered yet another type of array and repeated.
+The actual transmission format for a multidimensional array is to send each element of the first array, then each element of the second array, and so on. We essentially treat the array as a basetype and send an array of it, which may further be considered yet another type of array and repeated. For an example of array serialization: [[1,2],[3,4]] would serialize to [1,2,3,4].
 
 === void ===
 No data whatsoever. Used for read with arguments(function calls) used purely for side effects.
 The short packet 0x06(Acknowledgement) should be sent in response to a successful read from void parameter.
-
-==== Advanced Types ====
-
-=== evtcnt8 ===
-a rolling unsigned int16 count of the number of times an event has occurred.
-
-=== evtcnt16 ===
-a rolling unsigned int16 count of the number of times an event has occurred.
-
-
-=== bytebffr[maxlength] ===
-A byte buffer. A read from this buffer will return up to the first 239 chars from the buffer prefixed by the number of bytes remaining in the buffer as an uint8. May be readable or writable but not both. An example application would be a keyboard or a virtual com port.
-
-
-=== longbffr[maxlength] ===
-Same as above but prefixed by an uint16 instead of a byte.
-
-
-*Note: buffers can also represent events with arguments 
 
 ==== Special Types ====
 
