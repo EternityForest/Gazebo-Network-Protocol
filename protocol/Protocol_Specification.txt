@@ -6,7 +6,7 @@ Creation-Date: 2013-01-01T13:06:41-08:00
 Created Tuesday 01 January 2013
 
 (c) 2013 Daniel Black.
-Version 0.4.4
+Version 0.5.5
 This work is licensed under a Creative Commons Attribution 3.0 Unported License.
 
 
@@ -145,12 +145,20 @@ The CRC is always sent big-endian.
 The protocol defines several possible physical layers. Each physical layer defines connectors, voltage levels, and power may be carried alongside in all of them. All three layers are intercompatible with very simple adapters.
 
 ==== Gazebo-USB ====
-A point-to-point version of Gazebo tunneled over a virtual COM port connection using the standard usb-CDC class. One advantage of Gazebo-USB is that from the software's point of view it is identical to talking to a RS485 Gazebo device through a serial adapter. The device should present itself as 8-N-1 Serial, and baud rate commands should be ignored as USB serial has no baud rate in the traditional sense.
+A point-to-point version of Gazebo tunneled over a virtual COM port connection using the standard USB-CDC class. One advantage of Gazebo-USB is that from the software's point of view it is identical to talking to a RS485 Gazebo device through a serial adapter. The device should present itself as 8-N-1 Serial, and baud rate commands should be ignored as USB serial has no baud rate in the traditional sense.
 
 To avoid failure, any software that acts as a master on a computer that is no
 
 ==== Gazebo-RS485 ====
-8-N-1 RS485 Idle high non-inverted data carried along with power using RJ-11 connectors with pin order GND,PWR,A,B looking into the male with tab down. The voltage is 9-22V and all devices must handle a 24V over-voltage. All devices must hot plug to 22V through 250uH+0.5Ohms and 1.2mH+7ohms without damage. Devices requiring more than ~500mW should have an external power connector, which //should// take a voltage in the range of 7-30V but may take any voltage. Where possible cables should be made using 22 Gauge copper stranded wire, preferably twisted pair. Devices should use a transceiver with the slowest slew rate that will still support their highest baud rate. The RS485 bus should use failsafe pullups at one terminator.
+8-N-1 RS485 Idle high non-inverted data carried along with power using RJ-11 connectors with pin order GND,PWR,A,B looking into the male with tab down. The working voltage is 9-24V and all devices must handle a 30V continual over-voltage,. All devices must hot plug to 24V through 30uH+2Ohms and 300uH+20ohms without damage. Devices are not required to hot-plug to 30V. Devices should be designed to survive up to 37V applied to either RS485 data line.
+
+All devices supplying power must be designed in such a way that a short circuit will not cause a dangerous fault or permanent circuit damage. Devices supplying power must not create any dangerous condition when two or more are connected to the same bus.
+
+No device may draw more than 1A from the network no matter what the voltage, although the total loading is limited by voltage drop and cable ampacity.
+
+The network bus ground must remain isolated from any earth ground at all times.
+
+ Devices requiring more than ~4W should have an external power connector, which //should// take a voltage in the range of 7-30V but may take any voltage. Where possible cables should be made using 22 Gauge copper stranded wire, twisted pair. Devices should use a transceiver with the slowest slew rate that will still support their highest baud rate. The RS485 bus should use failsafe pullups at one terminator.
 
 ==== Gazebo-TTL ====
 8-N-1 Idle high non-inverted data carried over a shared TTL wire pulled high to 5V via no less than 1k via any connector. Should power be carried alongside the voltage should be 5V.
@@ -255,23 +263,23 @@ Addresses 256 through 512 are reserved for Small Gazebo, the restricted subset o
 
 ===== Supported Baud Rates =====
 
-All devices by default must boot up to a rate of 4800 baud. All devices must support at least 9800 baud. Higher baud rates may be selected by broadcast or on a per-device basis.
+All devices by default must boot up to a rate of 4800 baud. All devices must support at least 9800 baud. Higher baud rates may be selected by broadcast or on a per-device basis. Baud rates are changed via a command that represents the rate as a uint8 interpreted as an index into the following table:
 
 The baud rate table for all devices is:
+Index = Rate
+0  =  100
+1  =  300
+2  =  1200
+3  =  2400
+4  =  4800
+5  =  9600
+6  =  100,000
+7  =  115,200
+8  =  250,000
+9  =  500,000
+10 = 1,000,000
 
-0. 100
-1. 300
-2. 1200
-3. 2400
-4. 4800
-5. 9600
-6. 100,000
-7. 115,200
-8. 250,000
-9. 500,000
-10. 1,000,000
-
-The choice of baud rates was designed to allow easy operation from modern crystals which are often (2^n)*(1000^n) hertz. The inclusion of "traditional" baud rates is only for compatibility with legacy hardware and serial ports. Baud rates below 115.2k use only traditional values because the error introduced from the combination of a modern crystal and a low "traditional" rate is likely to be low due to the high divider value used relative to any rounding error.
+The choice of baud rates was designed to allow easy operation from modern crystals which are often (2^n)*(1000^m) hertz. The inclusion of "traditional" baud rates is only for compatibility with legacy hardware and serial ports. Baud rates below 115.2k use only traditional values because the error introduced from the combination of a modern crystal and a low "traditional" rate is likely to be low due to the high divider value used relative to any rounding error.
 
 
 ===== Valid Packet Types =====
@@ -314,7 +322,7 @@ Instructs the slave with a UUID that matches the UUID in the packet to set its t
 == Description ==
 Slaves must return a string of data up to 248 bytes long with starting position is S=(248*Page Number) of the Slave Description String.
 The slave description string  must be null terminated and the last page should not contain data after the null.
-The format s UTF-8. For example:
+The format is UTF-8. For example:
 Page 1 would by bytes 0-247
 Page 2 would be bytes 248-496
 etc. until the last page which may be less than 248 bytes long and must have a null terminator as the last byte.
@@ -539,20 +547,18 @@ Numbers must be decimal numbers without thousands separators.
 
 The meanings of the fields are as follows.
 
-==== Product Name ====
-The product name identifies the type of device. The individual device name allows that specific device to be given a name.
 
 ==== Gazebo Major Version ====
 The major part of the version. If the devices was built to comply with a non integer(experimental version), the full number should be prefixed by an x.
+
+==== Product Name ====
+The product name identifies the type of device. The individual device name allows that specific device to be given a name.
 
 ==== Device Firmware Version ====
 An arbitrary short string which is specific to the device.
 
 ==== Flags ====
 A lit of single character flags. This field reserved for future use as no flags are currently defined.
-
-==== Individual Device Name ====
-For devices that support user settable names.
 
 ==== Number of parameters ====
 What it says on the tin, in decimal of course.
@@ -722,7 +728,7 @@ A write to a float[0:50] array may contain 0 to 50 floats, and a read to a float
 
 Multidimensional arrays are considered arrays of arrays, and only the last element may be variable. the syntax for a multidimensional array is basetype[a][b], representing b arrays of size a. any number of dimensions is allowed. uint8[10][0:10] would be valid whereas uint8[1:5][10] would not. 
 
-The actual transmission format for a multidimensional array is to send each element of the first array, then each element of the second array, and so on. We essentially treat the array as a basetype and send an array of it, which may further be considered yet another type of array and repeated. For an example of array serialization: [[1,2],[3,4]] would serialize to [1,2,3,4].
+The actual transmission format for a multidimensional array is to send each element of the first array, then each element of the second array, and so on. We essentially treat the array as a basetype and send an array of it, which may further be considered yet another type of array and repeated. For an example of array serialization:[ [ 1,2] , [3,4] ]would serialize to [1,2,3,4].
 
 === void ===
 No data whatsoever. Used for read with arguments(function calls) used purely for side effects.
