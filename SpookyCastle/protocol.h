@@ -111,7 +111,7 @@ struct Parameter
   void (*getter)(unsigned char *);
 
   /**A pointer to a function that takes length prefixed arrays Unused for simple params*/
-  void (*setter)(unsigned char *);
+  void (*setter)(unsigned char *,unsigned char);
   /**The minimum length, or alternately the fixed length for simple parameters*/
   unsigned char minlength;
   /**The maximum length, unused for simple params*/
@@ -142,7 +142,7 @@ extern unsigned char Gazebo_SetBaudRate(unsigned char);
 //For the convinence of user code
 extern void SendSlaveDataResponse(const unsigned char *, const unsigned char);
 extern void SendSlaveError( unsigned char,char *);
+extern unsigned char SendErrorIfDataWriteOutOfBounds(unsigned char,unsigned char,unsigned char);
 extern unsigned char SendErrorIfArgumentStringOutOfBounds(unsigned char,unsigned char,unsigned char);
-extern unsigned char SendErrorIfADataWriteOutOfBounds(unsigned char,unsigned char,unsigned char);
 extern unsigned char CheckInformationBroadcastKey(const char *,const unsigned char *);
 

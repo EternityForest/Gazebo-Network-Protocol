@@ -249,13 +249,13 @@ static void HandleParameterRequest(unsigned char *packet)
   if (parameter.flags&FLAG_SIMPLE)
   {
     if(packet[LENGTH_OFFSET]>PACKET_OVERHEAD)
-	{
-    SendSlaveDataResponse((unsigned char*)parameter.variable,parameter.minlength);
-	}
-	else
-	{
-	SendSlaveError(ERROR_TOO_MANY_ARGUMENTS,"");
-	}
+    {
+      SendSlaveDataResponse((unsigned char*)parameter.variable,parameter.minlength);
+    }
+    else
+    {
+      SendSlaveError(ERROR_TOO_MANY_ARGUMENTS,"");
+    }
   }
 
   else
@@ -344,26 +344,26 @@ static void HandleSlaveAddressSetCommand(unsigned char *packet)
 /**Given a Parameter Write packet, send the appropriate reponse and write the parameter if applicable.
  * @param packet A pointer to the packet to handle.
  */
-static void HandleParameterWrite(unsigned char *packet)
+static void HandleParameterWrite(unsigned char *packet,unsigned char respond)
 {
   struct Parameter parameter;
-  
+
   parameter = Gazebo_Parameters[packet[DATA_OFFSET]];
   unsigned char i = 0;
   unsigned char *temp;
   if (packet[DATA_OFFSET] >= Gazebo_Parameters_Length)
   {
-    SendSlaveError(ERROR_NONEXISTANT_PARAMETER,"");
+    if (respond) SendSlaveError(ERROR_NONEXISTANT_PARAMETER,"");
     return;
   }
 
   if(!(parameter.flags&FLAG_WRITE))
   {
-    SendSlaveError(ERROR_UNSUPPORTED_ACTION,"");
+    if(respond) SendSlaveError(ERROR_UNSUPPORTED_ACTION,"");
     return;
   }
 
-  
+
 
   //TODO support advanced propereties
   //If the parameter is a simple fixed length exposed variable
@@ -374,17 +374,17 @@ static void HandleParameterWrite(unsigned char *packet)
   //Get the length of data the packet wants to write by subtracting the overhead,
   //And subtracting one because the first data byte is to select the parameter.
   datalen = (packet[LENGTH_OFFSET] - PACKET_OVERHEAD)-1;
-  
+
   if (datalen < parameter.minlength)
   {
-    SendSlaveError(ERROR_TOO_SMALL_DATA_WRITE,"");
+    if(respond) SendSlaveError(ERROR_TOO_SMALL_DATA_WRITE,"");
     //Just quit after sending the error
     return;
   }
 
   if (datalen > parameter.maxlength)
   {
-    SendSlaveError(ERROR_TOO_LARGE_DATA_WRITE,"");
+    if(respond) SendSlaveError(ERROR_TOO_LARGE_DATA_WRITE,"");
     return;
   }
 
@@ -403,14 +403,14 @@ static void HandleParameterWrite(unsigned char *packet)
       GetByteOf(i,*temp) = GetByteOf(i,*packet);
     }
 
-    SendAcknowledgment();
+    if(respond) SendAcknowledgment();
   }
-  
+
   else
   {
     //The first byte of data was our parameter number but the setter alreadly knows that
     packet[DATA_OFFSET] = packet[LENGTH_OFFSET]-(PACKET_OVERHEAD+1);
-    parameter.setter(packet+DATA_OFFSET);
+    parameter.setter(packet+DATA_OFFSET,respond);
   }
 }
 
@@ -503,7 +503,7 @@ static void HandleNewPacket(unsigned char *packet)
     HandleSlavePresenceDetectRequest(packet);
     break;
   case TYPE_PARAMETER_WRITE:
-    HandleParameterWrite(packet);
+    HandleParameterWrite(packet,1);
     break;
   case TYPE_ADRESS_SET:
     HandleSlaveAddressSetCommand(packet);
@@ -676,31 +676,32 @@ unsigned char  CheckInformationBroadcastKey(const char *key,const unsigned char 
 /**Return true and automatically send an error on out of bounds length of arg data. return 1 on len error */
 unsigned char SendErrorIfArgumentStringOutOfBounds(unsigned char len,unsigned char lowerbound,unsigned char upperbound)
 {
-    if (len>upperbound)
-    {
-      SendSlaveError(ERROR_TOO_MANY_ARGUMENTS,"");
-	  return(1);
-    }
-    else if (len<lowerbound)
-    {
-      SendSlaveError(ERROR_TOO_FEW_ARGUMENTS,"");
-	  return(1);
-    }	
-	return(0);
+  if (len>upperbound)
+  {
+    SendSlaveError(ERROR_TOO_MANY_ARGUMENTS,"");
+    return(1);
+  }
+  else if (len<lowerbound)
+  {
+    SendSlaveError(ERROR_TOO_FEW_ARGUMENTS,"");
+    return(1);
+  }	
+  return(0);
 }
 
 /**Return true and automatically send an error on out of bounds length of data. packet is the data passed to a setter. return 1 on len error*/
 unsigned char SendErrorIfDataWriteOutOfBounds(unsigned char len,unsigned char lowerbound,unsigned char upperbound)
 {
-if (len>upperbound)
-    {
-      SendSlaveError(ERROR_TOO_LARGE_DATA_WRITE,"");
-	  return(1);
-    }
-    else if(len<lowerbound)
-    {
-      SendSlaveError(ERROR_TOO_SMALL_DATA_WRITE,"");
-	  return(1);
-	}
-	return(0);
+  if (len>upperbound)
+  {
+    SendSlaveError(ERROR_TOO_LARGE_DATA_WRITE,"");
+    return(1);
+  }
+  else if(len<lowerbound)
+  {
+    SendSlaveError(ERROR_TOO_SMALL_DATA_WRITE,"");
+    return(1);
+  }
+  return(0);
 }
+

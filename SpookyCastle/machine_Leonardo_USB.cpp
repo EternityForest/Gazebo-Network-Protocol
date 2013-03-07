@@ -37,7 +37,7 @@
 long LastByteTime;
 
 /**This is a table of all of the baud rates defined in the specification*/
-unsigned long BaudRates[10] = 
+unsigned long BaudRates[11] = 
 {
   100,
   300,
@@ -45,13 +45,15 @@ unsigned long BaudRates[10] =
   2400,
   4800,
   9600,
-  100000,
+  38400,
+  57600,
   250000,
   500000,
   1000000
 };
 
 
+extern void setupUUIDIfNotAlreadySetUp();
 
 void Gazebo_Initialize()
 {

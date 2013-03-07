@@ -6,9 +6,8 @@ Creation-Date: 2013-01-01T13:06:41-08:00
 Created Tuesday 01 January 2013
 
 (c) 2013 Daniel Black.
-Version 0.5.5
+Version 0.6.5
 This work is licensed under a Creative Commons Attribution 3.0 Unported License.
-
 
 
 ===== Introduction and Statement of Purpose =====
@@ -273,11 +272,12 @@ Index = Rate
 3  =  2400
 4  =  4800
 5  =  9600
-6  =  100,000
-7  =  115,200
-8  =  250,000
-9  =  500,000
-10 = 1,000,000
+6  =  38400
+7  =  57600
+8  =  115,200
+9  =  250,000
+10  =  500,000
+11 = 1,000,000
 
 The choice of baud rates was designed to allow easy operation from modern crystals which are often (2^n)*(1000^m) hertz. The inclusion of "traditional" baud rates is only for compatibility with legacy hardware and serial ports. Baud rates below 115.2k use only traditional values because the error introduced from the combination of a modern crystal and a low "traditional" rate is likely to be low due to the high divider value used relative to any rounding error.
 
@@ -383,7 +383,7 @@ Slaves must NOT respond with acknowledgment. In case of errors slaves must still
 
 
 == Description ==
-Slaves must set their transmit and receive baud rates to this value. Slaves must respond with an ACK packet or with the appropriate error is the baud rate is out of range or any other error occurs.
+Slaves must set their transmit and receive baud rates to this value. Slaves must respond with an ACK packet or with the appropriate error is the baud rate is out of range or any other error occurs. The ACK packet should be sent at the current baud rate, not the new one.
 
 
 === 16: Information Broadcast Message: ===
@@ -607,6 +607,8 @@ Interpretation should be thought of as a "subtype". Good examples are "Score", "
 
 When naming interpretations for custom formats, you can prefix them with a base64 UUID as described before, or you can simply place the variable inside a group representing your interface.
 
+Should the parameter be a tuple, each element of the tuple should be given its own interpretation and interpretations should be separated by semicolons. example, a (float32;float32) tuple with interpretation (Kelvin;Relative Humidity)
+
 ==== [ [Name,Type,Interpretation]...] ====
 This entire field may be blank. If it is not, than it is a list of parameters that must be passed when "calling" i.e. reading from the parameter. Bracketed 3-tuples of name,type, and interpretation.
 Only the last parameter may be a variable array.
@@ -694,33 +696,40 @@ Master side software may choose to require extra confirmation before changing th
 
 The standard data data types are:
 
-==== Basic types ====
-
-These may be arrayed
+==== Basic Types ====
+As previously mentioned, all data is little-endian.
 
 === float32 ===
-IEEE float
+IEEE Single Precision floating point value.
 
 === uint8 ===
+Unsigned 8 bit integer.
 
 === uint16 ===
+Signed 16 bit integer.
 
 === uint32 ===
+Unsigned 32 bit integer.
 
 === int8 ===
+Signed 8 bit integer.
 
 === int16 ===
+Signed 16 bit integer.
 
 === int32 ===
+Unsigned 32 bit integer.
 
-=== enum{FirstPossibleValue|SecondPossibleValue;etc} ===
+=== enum{FirstPossibleValue|SecondPossibleValue|etc} ===
 An enumeration similar to C enumerations. Between the brackets can be any number for 0 to 255 of pipe separated identifiers which may not contain spaces or commas or brackets. This should be considered exactly the same as a uint8 with additional semantics attached. Keep in mind parameter description strings are limited to 248 bytes total.
 
 === UTF-8 ===
 Alias of ''uint8'', used to indicate that this should be interpreted as a string. Null terminators should not be sent.
 
+==== Composite Types ====
+
 === Arrays ===
-**An array type of any of the above is also valid**, following the convention type[count] or type[min:max] for variable lengths.
+**An array type of any Base Type is valid**, following the convention type[count] or type[min:max] for variable lengths.
 
  An example would be a byte[10] array. Every write must write every index and every read will return the entire array. 
 
@@ -730,13 +739,16 @@ Multidimensional arrays are considered arrays of arrays, and only the last eleme
 
 The actual transmission format for a multidimensional array is to send each element of the first array, then each element of the second array, and so on. We essentially treat the array as a basetype and send an array of it, which may further be considered yet another type of array and repeated. For an example of array serialization:[ [ 1,2] , [3,4] ]would serialize to [1,2,3,4].
 
-=== void ===
-No data whatsoever. Used for read with arguments(function calls) used purely for side effects.
-The short packet 0x06(Acknowledgement) should be sent in response to a successful read from void parameter.
+=== Tuples: ===
+A tuple may contain any basic type or array. Tuple elements are separated by semicolons and may not be other tuples. Tuples are serialized by concatenation in the same way as read arguments. Just like arguments, only the last element in a tuple may be of variable size. Tuples do not have any special enclosing syntax and are simple semicolon separated lists.
+An example of a valid tuple: "uint8;uint8;float32;UTF-8[0:32]"
+
+Each field of the tuple should be given its own name via the *tuple attribute in //Additional Attributes//.
+Gazebo does not support 1-tuples.
 
 ==== Special Types ====
 
-These return 1-Byte Short Packets.
+These may return 1-Byte Short Packets.
 
 === Bool ===
 When read from, returns a 1-byte packet consisting of ASCII 0 or 1.
@@ -745,6 +757,10 @@ Writes as a uint8 with literal 1 or 0 not ASCII 1 or 0 values.
 === Hex ===
 When read from, returns a hex digit represented as 1 ASCII byte
 Writes as a uint8 from 0 to 15.
+
+=== void ===
+No data whatsoever. Used for read with arguments(function calls) used purely for side effects.
+The short packet 0x06(Acknowledgement) should be sent in response to a successful read from void parameter.
 
 
 ===== Standard Information Broadcast Identifiers =====
@@ -807,6 +823,12 @@ The voltage as sensed by the master which is likely also the power supply in mil
 ==== LANGUAGE ====
 A comma separated list of preferred languages specified as ISO 639-2 codes from most to least preferred.
 
+==== DEVICES ====
+A uint16 expressing the total number of devices that the master knows to be present on the bus
+
+==== SupplymA ====
+A uint16 expressing the total load on the master's power supply.
+
 ===== Additional Attributes =====
 
 These may be applied to expose more information about the parameter.
@@ -823,6 +845,10 @@ A number indicating the maximum value that a numeric parameter may be set to
 ==== *min ====
 A number indicating the minimum value a numeric parameter may be set to.
 
+==== *fields ====
+A string containing a comma separated list of names, one for each field in the tuple.
+example "*fields"="temperature;humidity"
+
 ===== Rate Format Strings =====
 A rate format string is a number followed by one of ''us,ms,s,m,h,Hz,KHz, or MHz.''
 It simply indicates a maximum repetition rate in a flexible way.
@@ -833,25 +859,21 @@ To increase compatibility and decrease conflict, the following rules should be u
 
 **Reference should be made to the SI brochure.** Units with official SI symbols should be abbreviated unless the official SI symbol is a character that ASCII does not encode in which case they should be spelled out in full.
 
- Non-SI units should never be abbreviated except as listed below. SI capitalization rules should be followed. 
+Non-SI units should never be abbreviated except as listed below. SI capitalization rules should be followed. 
 
 **In addition to the SI units,** the liter may be used with abbreviation L and the degree may be used with abbreviation deg,  Any other unit used should be spelled in full.
 
-SI prefixes that are not powers of 1000(H,h,D,d) should be avoided.
-SI prefixes should //never// be used to refer to the powers of two(e.g. Kilo used to mean 1024), Instead the binary prefixes(Ki,Mi,Gi,Ti,etc) should be used.
+SI prefixes that are not powers of 1000(H,h,D,d) should be avoided. SI prefixes should //never// be used to refer to the powers of two(e.g. Kilo used to mean 1024), Instead the binary prefixes(Ki,Mi,Gi,Ti,etc) should be used.
 
 Various non-metric customary units such as ounces, pounds, and feet should be avoided when possible.
 
-Compound units should always be created with the forward slash and caret
-to denote exponentiation e.g. ''m/s^2'' or ''kg/m^3''. 
+Compound units should always be created with the forward slash for division and caret to denote exponentiation e.g. ''m/s^2'' or ''kg/m^3''. 
 
 Interpretation may also be used to define custom types. The name "unit" was purposefully avoided to allow complex named data structures. An example of this would be "WaveForm" for a DDS function generator, or "8/16kAudioStream" for a buffered 8 bit audio stream. 
 
 To avoid conflict, A UUID or a well-known company name should be prepended to custom units.
 
 Names beginning with any punctuation mark are reserved for "official" and standardized Interpretations.
-
-Units with multiple fields can be notated as pipe separated lists, with optional fields containing a question mark and fields larger than one base type containing numbers or min:max ranges. This notation is unlikely to fully describe many interpretations.
  
 The unit "counts" should be used to count events. 
 
@@ -935,6 +957,10 @@ Normally group addressing would require devices to be exactly the same or at lea
 
 ==== Button Presses, Motion Sensors, and other Short Events ====
 Since the slaves cannot report without being asked, simply polling the actual sensor state would leave a large possibility of missed events.  Instead, maintain a rolling event count, and simply check if it has changed since the last time you polled it.  Alternately, maintain a queue and place an entry in for every event. This requires more memory but allows the events to have attached data.
+
+==== Procedure Calls ====
+While function calls are best implemennted as reads with arguments, it is suggested that function calls that do not return a value
+be implemented as write operations to give the master the option of calling the procedure without waiting for acknowledgement.
 
 ===== Glossary =====
 

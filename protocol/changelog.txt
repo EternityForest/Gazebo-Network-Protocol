@@ -1,0 +1,13 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.4
+Creation-Date: 2013-03-06T02:08:53-08:00
+
+====== changelog ======
+Created Wednesday 06 March 2013
+
+===== Version 0.6.5 =====
+Changed baud rate lists so that no two baud rates are separated by less than a factor of two.
+Added support for tuples as a datatype. Added the *fields additional attribute to facillitate naming each field of the data.
+
+===== Version 0.5.5 =====
+Changed physical layer.

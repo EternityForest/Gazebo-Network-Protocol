@@ -24,7 +24,7 @@ test('Data format conversion with format strings')
 
 case('UTF-8')
 
-n = PyGazebo.GazeboDataFormatConverter('UTF-8[0:80]')
+n = gazebo_protocol.GazeboDataFormatConverter('UTF-8[0:80]')
 
 if n.PythonToGazebo('test') == b'test':
     succeed()
@@ -48,7 +48,7 @@ else:
 ###
 case('enum{a|b|c|de|fgh}')
 
-n = PyGazebo.GazeboDataFormatConverter('enum{a|b|c|de|fgh}')
+n = gazebo_protocol.GazeboDataFormatConverter('enum{a|b|c|de|fgh}')
 
 if n.PythonToGazebo('a') == b'\x00':
     succeed()
@@ -73,7 +73,7 @@ else:
 
 case('uint16')
 
-n = PyGazebo.GazeboDataFormatConverter('uint16')
+n = gazebo_protocol.GazeboDataFormatConverter('uint16')
 
 if n.PythonToGazebo(0) == b'\x00\x00':
     succeed()
@@ -88,7 +88,7 @@ else:
 
 case('uint8[2][2]')
 
-n = PyGazebo.GazeboDataFormatConverter('uint8[2][2]')
+n = gazebo_protocol.GazeboDataFormatConverter('uint8[2][2]')
 
 if n.PythonToGazebo([[1,2],[3,4]]) == b'\x01\x02\x03\x04':
     succeed()
@@ -109,7 +109,7 @@ else:
 
 case('uint8[4]')
 
-n = PyGazebo.GazeboDataFormatConverter('uint8[4]')
+n = gazebo_protocol.GazeboDataFormatConverter('uint8[4]')
 
 if n.PythonToGazebo([1,2,3,4]) == b'\x01\x02\x03\x04':
     succeed()
@@ -129,7 +129,7 @@ else:
 ##############################
 case('uint8[3][6]')
 
-n = PyGazebo.GazeboDataFormatConverter('uint8[3][6]')
+n = gazebo_protocol.GazeboDataFormatConverter('uint8[3][6]')
 
 if n.PythonToGazebo([[1,2,3],[4,5,6],[1,2,3],[4,5,6],[1,2,3],[4,5,6]]) == b'\x01\x02\x03\x04\x05\x06\x01\x02\x03\x04\x05\x06\x01\x02\x03\x04\x05\x06':
     succeed()
@@ -146,7 +146,7 @@ else:
 ###########
 case('enum{a|b|c|de|fgh[2]}')
 
-n = PyGazebo.GazeboDataFormatConverter('enum{a|b|c|de|fgh}[2]')
+n = gazebo_protocol.GazeboDataFormatConverter('enum{a|b|c|de|fgh}[2]')
 
 if n.PythonToGazebo(['a','b']) == bytearray([0,1]):
     succeed()
@@ -172,6 +172,35 @@ if n.GazeboToPython(bytearray([0,1])) == ['a','b']:
     succeed()
 else:
     fail()
+######################################################
+case('uint8;uint8;uint8[2]')
+
+g = gazebo_protocol.GazeboDataFormatConverter('uint8;uint8;uint8[2]')
+
+if g.GazeboToPython(bytearray([1,2,9,8])) == (1,2,[9,8]):
+	succeed()
+else:
+	fail()
+	
+if g.PythonToGazebo(1,2,[9,8]) ==  bytearray([1,2,9,8]):
+	succeed()
+else:
+	fail()
+	
+	
+case('uint8;uint16;uint8[2];enum{a|b}')
+g = gazebo_protocol.GazeboDataFormatConverter('uint8;uint16;uint8[2];enum{a|b}')
+
+if g.GazeboToPython(bytearray([1,0,0,9,8,1])) == (1,0,[9,8],'b'):
+	succeed()
+else:
+	fail()
+	
+if g.PythonToGazebo(1,0,[9,8],'b') ==  (bytearray([1,0,0,9,8,1])):
+	succeed()
+else:
+	fail()
+
 test('ApplyNesting')
 case
 ######################################################
@@ -179,7 +208,7 @@ test('GazeboArgumentsStringToListOfNamedTuples')
 
 case("[a;b;c];[d;e;f]")
 
-if PyGazebo.GazeboArgumentsStringToListOfNamedTuples('[[a;b;c];[d;e;f]]') == [('a','b','c'),('d','e','f')]:
+if gazebo_protocol.GazeboArgumentsStringToListOfNamedTuples('[[a;b;c];[d;e;f]]') == [('a','b','c'),('d','e','f')]:
     succeed()
 else:
     fail()
@@ -188,7 +217,7 @@ case("[a;b;c];[d;e]")
 
 
 try:
-     PyGazebo.GazeboArgumentsStringToListOfNamedTuples('"[a;b;c];[d;e]"') #This cannot be made into an even number of 3-tuples so will fail.
+     gazebo_protocol.GazeboArgumentsStringToListOfNamedTuples('"[a;b;c];[d;e]"') #This cannot be made into an even number of 3-tuples so will fail.
      fail()
 except ValueError:
      succeed()
@@ -197,7 +226,7 @@ except ValueError:
 test('GazeboPacket')
 case('Make a packet, convert to bytes and back')
 
-g = PyGazebo.GazeboPacket()
+g = gazebo_protocol.GazeboPacket()
 
 g.data = b'testing'
 g.type = 123
@@ -205,7 +234,7 @@ g.address = 456
 
 b = g.toBytes()
 
-f = PyGazebo.GazeboPacket()
+f = gazebo_protocol.GazeboPacket()
 
 #Should return 0 or not complete
 if f.ParseBytes(b[0:-3]):
@@ -224,7 +253,7 @@ if (f.data == b'testing') and (f.type ==g.type) and (f.address == g.address):
 else:
     fail()
 
-h = PyGazebo.GazeboPacket()
+h = gazebo_protocol.GazeboPacket()
 
 #Now parse again but give it a bad CRC
 h.ParseBytes(b[:-1])

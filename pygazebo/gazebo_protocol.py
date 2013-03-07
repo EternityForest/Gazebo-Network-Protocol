@@ -23,6 +23,7 @@ import threading
 import queue
 import serial
 import collections
+import json
 
 GAZEBO_SHORT_PACKETS = bytes([0x01,0x06] + list(range(0x30,0x46))) # ASCII 0 through F plus ACK and 1
 
@@ -50,18 +51,19 @@ PARAMETER_DESCRIPTOR_GROUP_ROLE_INDEX = 5
 PARAMETER_DESCRIPTOR_GROUP_NAME_INDEX = 6
 PARAMETER_DESCRIPTOR_GROUP_CLASS_INDEX = 7
 PARAMETER_DESCRIPTOR_DESCRIPTION_INDEX = 8
+PARAMETER_DESCRIPTOR_ADDITIONAL_ATTRIBUTES_INDEX = 9
 
 SLAVE_DESCRIPTOR_FIRMWARE_VERSION_INDEX = 0
 SLAVE_DESCRIPTOR_SLAVE_NAME_INDEX = 1
 SLAVE_DESCRIPTOR_TOTAL_PARAMETERS_INDEX = 4
 
-ASCII_ACK = 6000
+ASCII_ACK = 6
 
 #Set up the CRC calc used to check the validity of Gazebo packets. [Baicheva00],0 initial, no bitreversal, 0 xor
 crcfun = crcmod.mkCrcFun(0x1c86c, rev = False, xorOut = 0, initCrc = 0)
 
 def CRC16(data):
-	return(struct.pack('>H',crcfun(data)))
+    return(struct.pack('>H',crcfun(data)))
    
 def GazeboArgumentsStringToListOfNamedTuples(gstring):
     """Convert a gazebo argument string to a list of (name,type,interpretation) tuples.
@@ -197,7 +199,6 @@ class Gazebo_Slave(object):
                     dat.append(j)
                 else:
                     break
-            
             SlaveDescriptor = SlaveDescriptor + dat.decode('utf-8')
             
             if 0 in n.returndata:
@@ -219,8 +220,8 @@ class Gazebo_Slave(object):
             r = NetworkRequest(self.manager)
             r.data = b; r.expect = 'gazebopacket'
             r.Send()
-            
             pd = r.returndata.decode("utf-8")
+            
             pd = pd.split(',')
 
             n.flags = pd[PARAMETER_DESCRIPTOR_FLAGS_INDEX]
@@ -231,8 +232,15 @@ class Gazebo_Slave(object):
             n.groupclass = pd[PARAMETER_DESCRIPTOR_GROUP_CLASS_INDEX]
             n.description = pd[PARAMETER_DESCRIPTOR_DESCRIPTION_INDEX]
             n.arguments = GazeboArgumentsStringToListOfNamedTuples(pd[PARAMETER_DESCRIPTOR_ARGUMENTS_INDEX])
-            
-            n._datainterpreter = GazeboDataFormatConverter(n.type)
+            #Load the additional attributes from the JSON data.
+            try:
+                n.attributes = json.loads(pd[PARAMETER_DESCRIPTOR_ADDITIONAL_ATTRIBUTES_INDEX])
+            except:
+                n.attributes = {"ATTRIBUTE_ERROR":"JSON_DECODE_ERROR"}
+            if '*fields' in n.attributes:
+                n._datainterpreter = GazeboDataFormatConverter(n.type,n.attributes['*fields'].split(';'))
+            else:
+                n._datainterpreter = GazeboDataFormatConverter(n.type)
             n._argumentconverters = []
             
             #Pre-Intitialize a list of argument converters because it takes time to parse
@@ -281,6 +289,7 @@ class NetworkManager(object):
     def __init__(self,comport,HasEcho = False):
         self.comport = serial.Serial(comport)
         self.comport.timeout = 5
+        self.running = True
         self.__timeout = 5
         self.MediumHasEcho = HasEcho
         #Setup the request queue
@@ -298,15 +307,17 @@ class NetworkManager(object):
     def close(self):
         """Close the underlying comport"""
         self.comport.close()
+        self.running = False #Kill the thread
 
     def setserialtimeout(self,val):
-            if not (self.__timeout == val):
+            if not (self.__timeout == val): #Never uneccesarily change the timeout because it takes 
+                                            #45ms on windows.
                     self.__timeout = val
                     self.comport.timeout = val
         
     #This goes and loops in its own thread and waits for new data to come into the request queue
     def __HandleRequestQueue(self):
-        while self:
+        while self.running:
             thisrequest = self.requestqueue.get()
             self.comport.write(thisrequest.data)
             if self.MediumHasEcho:
@@ -539,9 +550,16 @@ class NetworkParameter(object):
     def __init__(self):
       self.LastUpdated = 0
       self.expires =0.1 #Default to read-idempotent parameters being cached for a tenth of a second
+      self.internalbuffer = []
       
     def __call__(self, *args): #NetworkParameter is callable, and calling it is an alias for read.
-        return self.read(*args)
+        if 'r' in self.flags:
+            if 'w' in self.flags:
+                raise RuntimeError('Parameter is both readable and writable, and I cannot resolve which one you want to do. Please use read or write')
+            else:
+                return self.read(*args)
+        else:
+            return self.write(*args)
       
     def read(self, *args):
         """Returns the value of the parameter. Will use the cached value if possible."""
@@ -581,15 +599,13 @@ class NetworkParameter(object):
         else:
             return self.CachedValue
             
-    def write(self,data):
+    def write(self,*data):
         """Write data to a parameter. Data must be of a format that is compatibe with the devices expected type."""
         
         #Translate the input data to gazebo's format, prepend the parameter number
-        temp = self._datainterpreter.PythonToGazebo(data)
+        temp = self._datainterpreter.PythonToGazebo(*data) #we support tuples by unpacking them and repacking in the converter.. odd.
         data = struct.pack('<B',self.paramnumber)
         data= data + temp
-        
-        
         g = GazeboPacket()
         g.data = data
         g.address = self.parentslave.address
@@ -631,9 +647,23 @@ class NetworkParameter(object):
             string += 'Readable parameter '
         elif 'w' in self.flags:
             string += 'Writable parameter '
+        if ';' in self.type:    
+            string += 'of type ' + '(' + self.type.replace(';',' , ') + ')'
+        else:
+            string += 'of type ' + self.type
+        
+        #Add the tuple field name info 
+        if '*fields' in self.attributes:
+            string = '\n with field names: ('
+            for i in self.attributes['*fields'].split(';'):
+                string += i + ','
+            string =+ '\n'
             
-        string += 'of type ' + self.type
-        string += ' to be interpreted as ' + self.interpretation
+        if ';' in self.interpretation:
+            string += ' to be interpreted as ' + '(' + self.interpretation.replace(';',' , ') + ')'
+        else:
+            string += ' to be interpreted as '+ self.interpretation + ')'
+            
         string += '\n' +  'This parameter plays role ' + self.grouprole + ' in group ' + self.groupname + ' of type ' + self.groupclass + "\n"
    
         if len(self.arguments) == 0:
@@ -667,11 +697,15 @@ class NetworkParameter(object):
 
     def __repr__(self):
         return('<Parameter Object ' + self.name + ' of type ' + self.type + ' with interpretation ' +self.interpretation + '>')
+        
 
-def GazeboDataFormatConverter(formatstring):
+def GazeboDataFormatConverter(formatstring,fieldnames = None):
     """Create some specialized sublclass of BaseGazeboDataConverter toconvert to and from binary data according to
-    the format string."""
+    the format string. fieldnames can be a list of tuple field names if formatstring describes a tuple"""
 
+    #I'm so meta right here: GazeboTupleConverter calls this function for each element of the tuple.
+    if ';' in formatstring:
+        return GazeboTupleConverter(formatstring,fieldnames)
    #void types have a very simple converter
     if formatstring.startswith('void'):
        return GazeboVoidConverter()
@@ -719,6 +753,20 @@ class BaseGazeboDataConverter():
     def PythonToGazebo(self,data):
        """This must return a bytestring"""
        raise NotImplementedError
+    
+    def SizeOf(self,formatstring):
+        """Calculate the size in bytes of the data represented by a format string,
+        or return 0 if the data is variable"""
+        if not 'enum' in self.FormatStringToTupleOfBaseAndNesting(formatstring)[0]:
+            n = struct.calcsize(self.GazeboTypes[self.FormatStringToTupleOfBaseAndNesting(formatstring)[0]]) #Get the base type size
+        else:
+            n = 1 #Handle the special case of an enum in the base
+        for j in self.FormatStringToTupleOfBaseAndNesting(formatstring)[1]:        #Now multiply by the arrays
+            if isinstance(j,int):
+                n *= j
+            else:
+                n = 0 #But should we see a variable array, the result must be zero.
+        return n
 
     def FormatStringToTupleOfBaseAndNesting(self,formatstring):
        """Take as input a Gazebo format string, 
@@ -731,25 +779,19 @@ class BaseGazeboDataConverter():
        #Each array level is specified C style in braces so split on opening braces
        Type_as_list = formatstring.split('[')
 
-
-
        i2 = [Type_as_list[0]]
        #Get rid of all the closing brackets
+       #iterate over all the levels of nesting
        for i in Type_as_list[1:]:
-           i2.append( i.replace(']',''))
-           
-       Type_as_list = i2
-      #We want to make the last one a list [min,max] if it is a range.
-       #dont split if there is no colon
-       if ':' in Type_as_list[-1]:
-           Type_as_list[-1] = Type_as_list[-1].split(':')
-           Type_as_list[-1][0] = int(Type_as_list[-1][0])
-           Type_as_list[-1][1] = int( Type_as_list[-1][1])
-           
-       
+            if not ':' in i: 
+                i2.append( int(i.replace(']',''))) #for non variable levels
+            else: #for variable levels, make a list of two ints.
+                temp = i.replace(']','')
+                temp = temp.split(':')
+                i2.append([int(temp[0]),int(temp[1])])
  
        #The first element is the base type and the rest is a nesting structure
-       return (Type_as_list[0],Type_as_list[1:])
+       return (i2[0],i2[1:])
 
     def ApplyNesting(self,nesting,data):
        """take a flat list and nest it according to a nesting structure supplied as a list
@@ -796,7 +838,40 @@ class BaseGazeboDataConverter():
                outer.append(i)
        return outer
 
+class GazeboTupleConverter(BaseGazeboDataConverter):
+    """A class to handle packed tuples of gazebo data types."""
+    
+    def __init__(self,string,fieldnames = None):
+        """Create a multi converter according to a format string."""
+        s = string.split(';')
+        self.converters = [] #A list of converters for each argument
+        self.sizes = []      #A list of the sizes in bytes of each argument(0 means variable)
+        for i in s:
+            self.converters.append(GazeboDataFormatConverter(i))
+            self.sizes.append(self.SizeOf(i))
+            
+    def PythonToGazebo(self,*inputdata):
+        x = bytearray(0)
+        counter = 0
+        for i in inputdata:
+            x.extend(self.converters[counter].PythonToGazebo(i)) #Simply use each converter on its argument
+            counter +=1
+        return x
+    
+    def GazeboToPython(self, inputdata):
+        position = 0
+        output = []
         
+        #We need to divide the string into different sized chunks
+        counter = 0
+        for i in self.converters:
+            if self.sizes[counter]: #0 denotes a variable size
+                output.append(i.GazeboToPython(inputdata[position:position+self.sizes[counter]]))
+            else:
+                output.append(i.GazeboToPython(inputdata[position:]))
+            position += self.sizes[counter]
+            counter +=1
+        return tuple(output) #Make a tuple.
         
 class GazeboNumberConverter(BaseGazeboDataConverter):
     
