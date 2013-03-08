@@ -38,6 +38,7 @@ PACKET_TYPE_SLAVE_ERROR = 5
 PACKET_TYPE_PARAMETER_INFO_REQUEST = 6
 PACKET_TYPE_PARAMETER_READ = 8
 PACKET_TYPE_WRITE = 10
+PACKET_TYPE_WRITE_WITHOUT_ACKNOWLEDGEMENT = 12
 PACKET_TYPE_INFORMATION_BROADCAST = 16
 PACKET_TYPE_SAVE_NONVOLATILE = 22
 
@@ -234,7 +235,12 @@ class Gazebo_Slave(object):
             n.arguments = GazeboArgumentsStringToListOfNamedTuples(pd[PARAMETER_DESCRIPTOR_ARGUMENTS_INDEX])
             #Load the additional attributes from the JSON data.
             try:
-                n.attributes = json.loads(pd[PARAMETER_DESCRIPTOR_ADDITIONAL_ATTRIBUTES_INDEX])
+                #Whew, what an awful hack this is. Since the JSON might have a comma it it, we unsplit it and add the commas back
+                stringofjson = ''
+                for i in  pd[PARAMETER_DESCRIPTOR_ADDITIONAL_ATTRIBUTES_INDEX:]:
+                    stringofjson += i + ','
+                stringofjson = stringofjson[:-1] #The last comma is after the last element and wasn't in the original so get rid of it.
+                n.attributes = json.loads(stringofjson)
             except:
                 n.attributes = {"ATTRIBUTE_ERROR":"JSON_DECODE_ERROR"}
             if '*fields' in n.attributes:
@@ -321,9 +327,9 @@ class NetworkManager(object):
             thisrequest = self.requestqueue.get()
             self.comport.write(thisrequest.data)
             if self.MediumHasEcho:
-               self.setserialtimeout(5)
+               self.setserialtimeout(0.5)
                self.comport.read(len(thisrequest.data))#Clear all the stuff in the buffer if we are on a half duplex line where we recieve what we send
-               
+            self.comport.flush()
             #Try to understand what the request object expects to recieve
             if isinstance(thisrequest.expect,list):
                 if thisrequest.expect[0] == 'time':
@@ -338,7 +344,7 @@ class NetworkManager(object):
                 start = time.time()
                 f = GazeboPacket()
                 t = 0
-                self.setserialtimeout(5) #Max time between bytes
+                self.setserialtimeout(0.5) #Max time between bytes
                 while(time.time()-start)<10:#Max total packet time
                     #Check if a complete packet has been recieved
                     
@@ -551,6 +557,7 @@ class NetworkParameter(object):
       self.LastUpdated = 0
       self.expires =0.1 #Default to read-idempotent parameters being cached for a tenth of a second
       self.internalbuffer = []
+      self.cachedvalue=0
       
     def __call__(self, *args): #NetworkParameter is callable, and calling it is an alias for read.
         if 'r' in self.flags:
@@ -620,11 +627,30 @@ class NetworkParameter(object):
             return True
         else:
             return False
+        
+            
+    def nwrite(self,*data):
+        """Write data to a parameter without asking for acknowledgement. Always returns True if no errors."""
+        #Translate the input data to gazebo's format, prepend the parameter number
+        temp = self._datainterpreter.PythonToGazebo(*data) #we support tuples by unpacking them and repacking in the converter.. odd.
+        data = struct.pack('<B',self.paramnumber)
+        data= data + temp
+        g = GazeboPacket()
+        g.data = data
+        g.address = self.parentslave.address
+        g.type = PACKET_TYPE_WRITE_WITHOUT_ACKNOWLEDGEMENT
+        b = g.toBytes()
+        n = NetworkRequest(self.parentslave.manager)
+        n.data = b
+        n.Send(block = False)
+        n.expect = None #The slave should not reply to this at all.
+        return True #always return true
+        
     
     def fresh(self):
         """Internal function used to determine if the cached value is still good."""
-        #Not-Idempotent values are not cacheable
-        if not 'i' in self.flags:
+        #Not-Idempotent values are not cacheable, nor are read operations with side effects
+        if (not 'i' in self.flags) or 's' in self.flags:
             return False
         #Read with arguments values are not cacheable
         if len(self.arguments):

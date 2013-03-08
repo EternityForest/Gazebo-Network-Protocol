@@ -76,7 +76,8 @@ Represents one parameter
 
 
 ==== NetworkParameter.__call__(*args) ====
-The network parameter object itself is callable. Calling it is an alias to read()
+The network parameter object itself is callable. If the parameter is either readable or writable whichever one is supported will occur.
+if the parameter is readable and writable a runtime error will be raised.
 
 ==== NetworkParameter.info() ====
 Return a string of imformation about the parameter
@@ -109,14 +110,21 @@ In this case calling parameter.read to write something is confusing, so the para
 '''
 
 
-==== NetworkParameter.write(data) ====
+==== NetworkParameter.write(*data) ====
 Writes data to the parameter. Returns True on success. The value will be translated from a native python equivalent. You can pass arrays in as lists, enums as strings, and nested arrays as nested lists.
+
+If the gazebo parameter being written is a tuple, each field must be be passed as a separate argument.
 
 === Example ===
 >>> temp.Write(90) #Lets write some random data to it!
 True
 >>> temp.Read() #Now let's read it back!
 90
+
+>>> XYposition.Write(90,87) #Lets write to a tuple parameter
+True
+>>> temp.Read() #Now let's read it back!
+(90,87)
 
 ==== NetworkParameter.expires ====
 The time(in seconds) to keep an old value for. The pygazebo library will try to cache values if it can to avoid unnecessary traffic.
