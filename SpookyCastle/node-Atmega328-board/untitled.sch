@@ -2697,6 +2697,24 @@ at 21/03/2012 17:47:01</description>
 <text x="-3.4544" y="1.27" size="2.0828" layer="25" ratio="10" rot="SR0">&gt;NAME</text>
 <text x="-3.4544" y="-3.175" size="2.0828" layer="27" ratio="10" rot="SR0">&gt;VALUE</text>
 </package>
+<package name="CAPC3225X270N">
+<smd name="1" x="-1.397" y="0" dx="0.9144" dy="2.6924" layer="1"/>
+<smd name="2" x="1.397" y="0" dx="0.9144" dy="2.6924" layer="1"/>
+<wire x1="-0.6096" y1="-1.3462" x2="0.6096" y2="-1.3462" width="0.1524" layer="21"/>
+<wire x1="0.6096" y1="1.3462" x2="-0.6096" y2="1.3462" width="0.1524" layer="21"/>
+<wire x1="-0.9398" y1="-1.3462" x2="-0.9398" y2="1.3462" width="0" layer="51"/>
+<wire x1="-0.9398" y1="1.3462" x2="-1.7018" y2="1.3462" width="0" layer="51"/>
+<wire x1="-1.7018" y1="-1.3462" x2="-0.9398" y2="-1.3462" width="0" layer="51"/>
+<wire x1="0.9398" y1="1.3462" x2="0.9398" y2="-1.3462" width="0" layer="51"/>
+<wire x1="0.9398" y1="-1.3462" x2="1.7018" y2="-1.3462" width="0" layer="51"/>
+<wire x1="1.7018" y1="1.3462" x2="0.9398" y2="1.3462" width="0" layer="51"/>
+<wire x1="-0.9398" y1="-1.3462" x2="0.9398" y2="-1.3462" width="0" layer="51"/>
+<wire x1="1.7018" y1="-1.3462" x2="1.7018" y2="1.3462" width="0" layer="51"/>
+<wire x1="0.9398" y1="1.3462" x2="-0.9398" y2="1.3462" width="0" layer="51"/>
+<wire x1="-1.7018" y1="1.3462" x2="-1.7018" y2="-1.3462" width="0" layer="51"/>
+<text x="-3.4544" y="2.54" size="2.0828" layer="25" ratio="10" rot="SR0">&gt;NAME</text>
+<text x="-3.4544" y="-4.445" size="2.0828" layer="27" ratio="10" rot="SR0">&gt;VALUE</text>
+</package>
 </packages>
 <symbols>
 <symbol name="CAPH">
@@ -2733,6 +2751,31 @@ at 21/03/2012 17:47:01</description>
 <attribute name="TOLERANCE" value="±10%" constant="no"/>
 <attribute name="VALUE" value="1uF" constant="no"/>
 <attribute name="VOLTAGERATING" value="50V" constant="no"/>
+</technology>
+</technologies>
+</device>
+</devices>
+</deviceset>
+<deviceset name="GRM32ER7YA106KA12L" prefix="C">
+<description>CAPACITOR, 1210</description>
+<gates>
+<gate name="A" symbol="CAPH" x="0" y="0" swaplevel="1"/>
+</gates>
+<devices>
+<device name="" package="CAPC3225X270N">
+<connects>
+<connect gate="A" pin="C1" pad="1"/>
+<connect gate="A" pin="C2" pad="2"/>
+</connects>
+<technologies>
+<technology name="">
+<attribute name="MPN" value="GRM32ER7YA106KA12L" constant="no"/>
+<attribute name="OC_FARNELL" value="1735537" constant="no"/>
+<attribute name="OC_NEWARK" value="24R2634" constant="no"/>
+<attribute name="SUPPLIER" value="Murata" constant="no"/>
+<attribute name="TOLERANCE" value="±10%" constant="no"/>
+<attribute name="VALUE" value="10uF" constant="no"/>
+<attribute name="VOLTAGERATING" value="35V" constant="no"/>
 </technology>
 </technologies>
 </device>
@@ -3297,7 +3340,6 @@ Based on the following sources:&lt;p&gt;
 <part name="IC1" library="SparkFun - Copy" deviceset="V_REG_78XX" device="SIDE"/>
 <part name="GND1" library="SparkFun - Copy" deviceset="GND" device=""/>
 <part name="P+1" library="SparkFun - Copy" deviceset="VCC" device=""/>
-<part name="C1" library="Murata_By_element14_Batch_1" deviceset="GRM21BR71H105KA12L" device="" value="1uF"/>
 <part name="P+2" library="SparkFun - Copy" deviceset="VCC" device=""/>
 <part name="C2" library="Murata_By_element14_Batch_1" deviceset="GRM21BR71H105KA12L" device="" value="1uF"/>
 <part name="GND2" library="SparkFun - Copy" deviceset="GND" device=""/>
@@ -3351,6 +3393,16 @@ Based on the following sources:&lt;p&gt;
 <part name="JP1" library="SparkFun - Copy" deviceset="M02" device="PTH"/>
 <part name="JP5" library="SparkFun - Copy" deviceset="M04" device="LOCK"/>
 <part name="GND10" library="SparkFun - Copy" deviceset="GND" device=""/>
+<part name="C1" library="Murata_By_element14_Batch_1" deviceset="GRM32ER7YA106KA12L" device="" value="10uF"/>
+<part name="C7" library="Murata_By_element14_Batch_1" deviceset="GRM21BR71H105KA12L" device="" value="1uF">
+<attribute name="MPN" value="GRM21BR71H105KA12L "/>
+<attribute name="OC_FARNELL" value="1735541"/>
+<attribute name="OC_NEWARK" value="24R6342"/>
+<attribute name="SUPPLIER" value="Murata"/>
+<attribute name="TOLERANCE" value="±10%"/>
+<attribute name="VALUE" value="1uF"/>
+<attribute name="VOLTAGERATING" value="50V"/>
+</part>
 </parts>
 <sheets>
 <sheet>
@@ -3362,7 +3414,6 @@ Based on the following sources:&lt;p&gt;
 <instance part="IC1" gate="G$1" x="-2.54" y="35.56"/>
 <instance part="GND1" gate="1" x="-15.24" y="15.24"/>
 <instance part="P+1" gate="1" x="15.24" y="35.56"/>
-<instance part="C1" gate="A" x="-15.24" y="35.56" rot="R270"/>
 <instance part="P+2" gate="1" x="43.18" y="66.04"/>
 <instance part="C2" gate="A" x="10.16" y="30.48" rot="R270"/>
 <instance part="GND2" gate="1" x="30.48" y="45.72"/>
@@ -3392,6 +3443,8 @@ Based on the following sources:&lt;p&gt;
 <instance part="JP1" gate="G$1" x="20.32" y="109.22" rot="R180"/>
 <instance part="JP5" gate="G$1" x="66.04" y="109.22"/>
 <instance part="GND10" gate="1" x="73.66" y="99.06"/>
+<instance part="C1" gate="A" x="-15.24" y="30.48" rot="R270"/>
+<instance part="C7" gate="A" x="-10.16" y="30.48" rot="R270"/>
 </instances>
 <busses>
 </busses>
@@ -3727,11 +3780,6 @@ Based on the following sources:&lt;p&gt;
 <wire x1="30.48" y1="48.26" x2="30.48" y2="50.8" width="0.1524" layer="91"/>
 </segment>
 <segment>
-<wire x1="-15.24" y1="27.94" x2="-15.24" y2="17.78" width="0.1524" layer="91"/>
-<pinref part="GND1" gate="1" pin="GND"/>
-<pinref part="C1" gate="A" pin="C2"/>
-</segment>
-<segment>
 <pinref part="C4" gate="G$1" pin="2"/>
 <pinref part="GND4" gate="1" pin="GND"/>
 <wire x1="91.44" y1="60.96" x2="91.44" y2="63.5" width="0.1524" layer="91"/>
@@ -3774,15 +3822,27 @@ Based on the following sources:&lt;p&gt;
 <wire x1="73.66" y1="106.68" x2="73.66" y2="101.6" width="0.1524" layer="91"/>
 <pinref part="GND10" gate="1" pin="GND"/>
 </segment>
+<segment>
+<pinref part="GND1" gate="1" pin="GND"/>
+<pinref part="C1" gate="A" pin="C2"/>
+<wire x1="-15.24" y1="17.78" x2="-15.24" y2="22.86" width="0.1524" layer="91"/>
+<pinref part="C7" gate="A" pin="C2"/>
+<wire x1="-10.16" y1="22.86" x2="-15.24" y2="22.86" width="0.1524" layer="91"/>
+<junction x="-15.24" y="22.86"/>
+</segment>
 </net>
 <net name="VEXTERN" class="1">
 <segment>
-<pinref part="C1" gate="A" pin="C1"/>
 <pinref part="IC1" gate="G$1" pin="IN"/>
 <wire x1="-10.16" y1="35.56" x2="-15.24" y2="35.56" width="0.1524" layer="91"/>
-<junction x="-15.24" y="35.56"/>
 <wire x1="-15.24" y1="35.56" x2="-15.24" y2="40.64" width="0.1524" layer="91"/>
 <label x="-12.7" y="40.64" size="1.778" layer="95"/>
+<pinref part="C1" gate="A" pin="C1"/>
+<wire x1="-15.24" y1="30.48" x2="-15.24" y2="35.56" width="0.1524" layer="91"/>
+<junction x="-15.24" y="35.56"/>
+<pinref part="C7" gate="A" pin="C1"/>
+<wire x1="-15.24" y1="30.48" x2="-10.16" y2="30.48" width="0.1524" layer="91"/>
+<junction x="-15.24" y="30.48"/>
 </segment>
 <segment>
 <pinref part="J1" gate="G$1" pin="5"/>
