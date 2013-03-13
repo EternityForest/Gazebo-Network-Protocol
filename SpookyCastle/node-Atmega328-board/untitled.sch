@@ -3723,14 +3723,15 @@ Based on the following sources:&lt;p&gt;
 </part>
 <part name="R1" library="SparkFun - Copy" deviceset="RESISTOR" device="0805-RES" value="4.7k"/>
 <part name="P+5" library="SparkFun - Copy" deviceset="VCC" device=""/>
-<part name="C8" library="Murata_By_element14_Batch_1" deviceset="GRM32ER7YA106KA12L" device="" value="10uF">
-<attribute name="MPN" value="GRM32ER7YA106KA12L"/>
-<attribute name="OC_FARNELL" value="1735537"/>
-<attribute name="OC_NEWARK" value="24R2634"/>
+<part name="GND11" library="SparkFun - Copy" deviceset="GND" device=""/>
+<part name="C8" library="Murata_By_element14_Batch_1" deviceset="GRM21BR71H105KA12L" device="" value="1uF">
+<attribute name="MPN" value="GRM21BR71H105KA12L "/>
+<attribute name="OC_FARNELL" value="1735541"/>
+<attribute name="OC_NEWARK" value="24R6342"/>
 <attribute name="SUPPLIER" value="Murata"/>
 <attribute name="TOLERANCE" value="±10%"/>
-<attribute name="VALUE" value="10uF"/>
-<attribute name="VOLTAGERATING" value="35V"/>
+<attribute name="VALUE" value="1uF"/>
+<attribute name="VOLTAGERATING" value="50V"/>
 </part>
 </parts>
 <sheets>
@@ -3776,7 +3777,8 @@ Based on the following sources:&lt;p&gt;
 <instance part="C7" gate="A" x="-10.16" y="30.48" rot="R270"/>
 <instance part="R1" gate="G$1" x="99.06" y="104.14" rot="R270"/>
 <instance part="P+5" gate="1" x="99.06" y="114.3"/>
-<instance part="C8" gate="A" x="2.54" y="55.88" rot="R90"/>
+<instance part="GND11" gate="1" x="76.2" y="78.74"/>
+<instance part="C8" gate="A" x="76.2" y="91.44" rot="R270"/>
 </instances>
 <busses>
 </busses>
@@ -3924,6 +3926,8 @@ Based on the following sources:&lt;p&gt;
 <pinref part="R1" gate="G$1" pin="2"/>
 <wire x1="99.06" y1="99.06" x2="99.06" y2="93.98" width="0.1524" layer="91"/>
 <junction x="99.06" y="93.98"/>
+<pinref part="C8" gate="A" pin="C1"/>
+<wire x1="76.2" y1="91.44" x2="76.2" y2="93.98" width="0.1524" layer="91"/>
 </segment>
 </net>
 <net name="N$4" class="0">
@@ -4170,6 +4174,11 @@ Based on the following sources:&lt;p&gt;
 <pinref part="C7" gate="A" pin="C2"/>
 <wire x1="-10.16" y1="22.86" x2="-15.24" y2="22.86" width="0.1524" layer="91"/>
 <junction x="-15.24" y="22.86"/>
+</segment>
+<segment>
+<pinref part="GND11" gate="1" pin="GND"/>
+<pinref part="C8" gate="A" pin="C2"/>
+<wire x1="76.2" y1="81.28" x2="76.2" y2="83.82" width="0.1524" layer="91"/>
 </segment>
 </net>
 <net name="VEXTERN" class="1">
