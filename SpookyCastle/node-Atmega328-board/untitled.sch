@@ -4156,10 +4156,10 @@ Based on the following sources:&lt;p&gt;
 <wire x1="-2.54" y1="22.86" x2="10.16" y2="22.86" width="0.1524" layer="91"/>
 </segment>
 <segment>
-<wire x1="25.4" y1="88.9" x2="25.4" y2="81.28" width="0.1524" layer="91"/>
+<wire x1="25.4" y1="91.44" x2="25.4" y2="81.28" width="0.1524" layer="91"/>
 <pinref part="GND9" gate="1" pin="GND"/>
-<pinref part="J1" gate="G$1" pin="4"/>
-<wire x1="25.4" y1="88.9" x2="5.08" y2="88.9" width="0.1524" layer="91"/>
+<pinref part="J1" gate="G$1" pin="5"/>
+<wire x1="5.08" y1="91.44" x2="25.4" y2="91.44" width="0.1524" layer="91"/>
 </segment>
 <segment>
 <pinref part="JP5" gate="G$1" pin="1"/>
@@ -4195,33 +4195,33 @@ Based on the following sources:&lt;p&gt;
 <junction x="-15.24" y="30.48"/>
 </segment>
 <segment>
-<pinref part="J1" gate="G$1" pin="5"/>
-<wire x1="5.08" y1="91.44" x2="17.78" y2="91.44" width="0.1524" layer="91"/>
-<label x="20.32" y="91.44" size="1.778" layer="95"/>
+<pinref part="J1" gate="G$1" pin="2"/>
+<wire x1="5.08" y1="83.82" x2="10.16" y2="83.82" width="0.1524" layer="91"/>
+<label x="10.16" y="83.82" size="1.778" layer="95"/>
 </segment>
 </net>
 <net name="A" class="0">
-<segment>
-<pinref part="J1" gate="G$1" pin="3"/>
-<wire x1="5.08" y1="86.36" x2="17.78" y2="86.36" width="0.1524" layer="91"/>
-<label x="20.32" y="86.36" size="1.778" layer="95"/>
-</segment>
 <segment>
 <pinref part="SN65HVD1781" gate="A" pin="A"/>
 <wire x1="43.18" y1="43.18" x2="38.1" y2="43.18" width="0.1524" layer="91"/>
 <label x="35.56" y="43.18" size="1.778" layer="95" rot="R180"/>
 </segment>
+<segment>
+<pinref part="J1" gate="G$1" pin="4"/>
+<wire x1="5.08" y1="88.9" x2="10.16" y2="88.9" width="0.1524" layer="91"/>
+<label x="10.16" y="88.9" size="1.778" layer="95"/>
+</segment>
 </net>
 <net name="B" class="0">
-<segment>
-<pinref part="J1" gate="G$1" pin="2"/>
-<wire x1="5.08" y1="83.82" x2="17.78" y2="83.82" width="0.1524" layer="91"/>
-<label x="20.32" y="83.82" size="1.778" layer="95"/>
-</segment>
 <segment>
 <pinref part="SN65HVD1781" gate="A" pin="B"/>
 <wire x1="43.18" y1="40.64" x2="38.1" y2="40.64" width="0.1524" layer="91"/>
 <label x="35.56" y="40.64" size="1.778" layer="95" rot="R180"/>
+</segment>
+<segment>
+<pinref part="J1" gate="G$1" pin="3"/>
+<wire x1="5.08" y1="86.36" x2="10.16" y2="86.36" width="0.1524" layer="91"/>
+<label x="10.16" y="86.36" size="1.778" layer="95"/>
 </segment>
 </net>
 </nets>
