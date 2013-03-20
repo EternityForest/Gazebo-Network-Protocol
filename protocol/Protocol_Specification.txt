@@ -6,7 +6,7 @@ Creation-Date: 2013-01-01T13:06:41-08:00
 Created Tuesday 01 January 2013
 
 (c) 2013 Daniel Black.
-Version 0.7.6
+Version 0.71.6
 This work is licensed under a Creative Commons Attribution 3.0 Unported License.
 
 
@@ -149,9 +149,9 @@ A point-to-point version of Gazebo tunneled over a virtual COM port connection u
 To avoid failure, any software that acts as a master on a computer that is no
 
 ==== Gazebo-RS485 ====
-8-N-1 RS485 Idle high non-inverted data carried along with power using RJ-11 connectors with the pinout shown in the below table. The working voltage is 9-24V and all devices must handle a 30V continual over-voltage,. All devices must hot plug to 24V through 30uH+2Ohms and 300uH+20ohms without damage. Devices are not required to hot-plug to 30V. Devices should be designed to survive up to 37V applied to either RS485 data line.
+8-N-1 RS485 Idle high non-inverted data carried along with power using RJ-11 connectors with the pinout shown in the below table. The working voltage is 9-24V and all devices must handle a 30V continual over-voltage. Devices should remain functional at 30V but are not required to. All devices must hot plug to 24V through 30uH+2Ohms and 300uH+20ohms without damage. Devices are not required to hot-plug to 30V. Devices should be designed to survive up to 37V applied to either RS485 data line.
 
-All devices supplying power must be designed in such a way that a short circuit will not cause a dangerous fault or permanent circuit damage. Devices supplying power must not create any dangerous condition when two or more are connected to the same bus.
+All devices supplying power must be designed in such a way that a short circuit will not cause a dangerous fault or permanent circuit damage. Devices supplying power must not create any dangerous condition when two or more are connected to the same bus. Devices supplying power should be clearly labeled as to their voltage and current, and should include a warning against hot plugging if they supply more than 30V.
 
 No device may draw more than 1A from the network no matter what the voltage, although the total loading is limited by voltage drop and cable ampacity.
 
@@ -159,13 +159,15 @@ The network bus ground must remain isolated from any earth ground at all times.
 
  Devices requiring more than ~4W should have an external power connector, which //should// take a voltage in the range of 7-30V but may take any voltage. Where possible cables should be made using 22 Gauge copper stranded wire, twisted pair. Devices should use a transceiver with the slowest slew rate that will still support their highest baud rate. The RS485 bus should use failsafe pullups at one terminator.
 
+All "crowbar" type surge protection devices must not conduct at 30V as 30V should be considered a routine 
+
 === Pinout ===
 The pin ordering of of the rj11(using common rj11 numbering) is to be:
 
-5=PWR
-4=GND
-3=A
-2=B
+5=GND
+4=A
+3=B
+2=PWR
 
 ==== Gazebo-TTL ====
 8-N-1 Idle high non-inverted data carried over a shared TTL wire pulled high to 5V via no less than 1k via any connector. Should power be carried alongside the voltage should be 5V.

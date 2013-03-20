@@ -5,6 +5,11 @@ Creation-Date: 2013-03-06T02:08:53-08:00
 ====== changelog ======
 Created Wednesday 06 March 2013
 
+
+===== Version 0.71.6 =====
+Changed pinout to better match traditional rj11 uses, after observing the fact that a pin to pin short is unlikely, 30V is usually safe to touch, and 60V protected trancievers are cheap. Pinout and connector still subject to change after further testing.
+Added power supply labeling recomendations.
+
 ===== Version 0.7.6 =====
 Changed pin ordering, changed unclear wording in that section.
 Reason for change: Because power supplies are required to be short circuit proof, a short from pwr to gnd is much better than pwr-data, which might cause overheating in the termination resistors, wheras a pwr-gnd short will simply shutdown the supplies.
