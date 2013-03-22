@@ -4154,6 +4154,7 @@ Based on the following sources:&lt;p&gt;
 <wire x1="-2.54" y1="22.86" x2="-2.54" y2="27.94" width="0.1524" layer="91"/>
 <pinref part="C2" gate="A" pin="C2"/>
 <wire x1="-2.54" y1="22.86" x2="10.16" y2="22.86" width="0.1524" layer="91"/>
+<junction x="-2.54" y="22.86"/>
 </segment>
 <segment>
 <wire x1="25.4" y1="91.44" x2="25.4" y2="81.28" width="0.1524" layer="91"/>
