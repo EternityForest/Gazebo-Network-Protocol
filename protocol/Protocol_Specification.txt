@@ -6,16 +6,16 @@ Creation-Date: 2013-01-01T13:06:41-08:00
 Created Tuesday 01 January 2013
 
 (c) 2013 Daniel Black.
-Version 0.71.6
+Version 0.8.7
 This work is licensed under a Creative Commons Attribution 3.0 Unported License.
-
+This protocol was not designed for safety of life or mission critical functions. USE ENTIRELY AT YOUR OWN RISK.
 
 ===== Introduction and Statement of Purpose =====
 In many electronics applications there is a need for devices to communicate with each other. Often this is accomplished via a proprietary application layer running on a semi-standard link layer. Often much manual setup is required, e.g. entering device addresses, writing custom drivers, etc. Another problem is that devices are often incompatible with each other and cannot share a physical layer, or require certain physical data lines to be exclusive to one device.
 
 Gazebo aims to correct these problems by defining a protocol that runs on common, existing physical layers, does not require the purchase of any developer license or unique codes, allows device to share a common bus, allows devices to be discovered with manual addressing, and allows devices to be self-documenting.
 
-Gazebo does not require custom hardware nor does it require excessive CPU resources. It runs over common RS485, USB,or TTL interfaces and the software is freely available. Gazebo was designed not to require devices to have any user interface(DIP switch, etc) at all, an important concern for small sensors and the like.
+Gazebo does not require custom hardware nor does it require excessive CPU resources. It runs over common RS485, USB,or TTL interfaces and the software is freely available. Gazebo was designed not to require devices to have any user interface(DIP switch,LCD,Buttons, etc) at all, an important concern for small sensors and the like.
 
 Gazebo has native support for things like units of measure, data types (Including compound data types) remote function calls, nonvolatile configurations, and defines ways to ask questions about devices. Without human intervention the master can enumerate the devices on the bus, discover their capabilities, and issue commands.
 
@@ -146,28 +146,8 @@ The protocol defines several possible physical layers. Each physical layer defin
 ==== Gazebo-USB ====
 A point-to-point version of Gazebo tunneled over a virtual COM port connection using the standard USB-CDC class. One advantage of Gazebo-USB is that from the software's point of view it is identical to talking to a RS485 Gazebo device through a serial adapter. The device should present itself as 8-N-1 Serial, and baud rate commands should be ignored as USB serial has no baud rate in the traditional sense.
 
-To avoid failure, any software that acts as a master on a computer that is no
-
 ==== Gazebo-RS485 ====
-8-N-1 RS485 Idle high non-inverted data carried along with power using RJ-11 connectors with the pinout shown in the below table. The working voltage is 9-24V and all devices must handle a 30V continual over-voltage. Devices should remain functional at 30V but are not required to. All devices must hot plug to 24V through 30uH+2Ohms and 300uH+20ohms without damage. Devices are not required to hot-plug to 30V. Devices should be designed to survive up to 37V applied to either RS485 data line.
-
-All devices supplying power must be designed in such a way that a short circuit will not cause a dangerous fault or permanent circuit damage. Devices supplying power must not create any dangerous condition when two or more are connected to the same bus. Devices supplying power should be clearly labeled as to their voltage and current, and should include a warning against hot plugging if they supply more than 30V.
-
-No device may draw more than 1A from the network no matter what the voltage, although the total loading is limited by voltage drop and cable ampacity.
-
-The network bus ground must remain isolated from any earth ground at all times.
-
- Devices requiring more than ~4W should have an external power connector, which //should// take a voltage in the range of 7-30V but may take any voltage. Where possible cables should be made using 22 Gauge copper stranded wire, twisted pair. Devices should use a transceiver with the slowest slew rate that will still support their highest baud rate. The RS485 bus should use failsafe pullups at one terminator.
-
-All "crowbar" type surge protection devices must not conduct at 30V as 30V should be considered a routine 
-
-=== Pinout ===
-The pin ordering of of the rj11(using common rj11 numbering) is to be:
-
-5=GND
-4=A
-3=B
-2=PWR
+8-N-1 Serial data carried over RS485 voltage levels. For compatibility, Devices should accept any input power voltage between 7 and 30 volts but are not required to accept any particular voltage level. Connections, wire type, and power are left to the individual designer.
 
 ==== Gazebo-TTL ====
 8-N-1 Idle high non-inverted data carried over a shared TTL wire pulled high to 5V via no less than 1k via any connector. Should power be carried alongside the voltage should be 5V.
@@ -291,6 +271,7 @@ Index = Rate
 
 The choice of baud rates was designed to allow easy operation from modern crystals which are often (2^n)*(1000^m) hertz. The inclusion of "traditional" baud rates is only for compatibility with legacy hardware and serial ports. Baud rates below 115.2k use only traditional values because the error introduced from the combination of a modern crystal and a low "traditional" rate is likely to be low due to the high divider value used relative to any rounding error.
 
+The rates also have the property that no two rates are separated by less than a factor of two.
 
 ===== Valid Packet Types =====
 In this section the packet types are listed by type code and sorted into two categories: Packets sent only by the master and packets sent only by the slave. Packets sent by the master have even packet type codes and packets sent by the slave have odd packet type codes.
@@ -591,7 +572,6 @@ This lets the master know what broadcast keys it will listen to, and the Listene
 A list of strings, each one being the name of a standard information broadcast key(as listed in //Standard Information Broadcast Identifiers//) that the device implements.
 
 
-
 ===== Parameter Description String =====
 
 The parameter description string is a CSV string enclosed by square brackets of the following form:
@@ -771,6 +751,27 @@ Writes as a uint8 from 0 to 15.
 === void ===
 No data whatsoever. Used for read with arguments(function calls) used purely for side effects.
 The short packet 0x06(Acknowledgement) should be sent in response to a successful read from void parameter.
+void parameters may be writable(To allow unconfirmed procedure calls of 0 arguments)
+
+===== Standard Predefined Group Classes =====
+
+==== BlockInterface ====
+An interface to a block of volatile or nonvolatile memory.
+Must contain parameters playing the followin group roles:
+
+=== File ===
+Must be a variable length array of uint8.
+A read from this parameter will return the N bytes after the head position and advance the head by N.
+A write of N btes to this parameter will write those bytes after the pointer and advance by N.
+
+If the memory can only be written in blocks, The parameter playing role File must contain the additional attribute BlockSize
+which must be the block size in bytes and byte 0 must be the first byte of a block.
+Cache must be flushed to flash when the head crosses any block boundary.
+
+Reading must have no other side effects beyond advancing the head.
+
+=== Position ===
+Must be a uint16 or uint32. Represents the current head position.
 
 
 ===== Standard Information Broadcast Identifiers =====
@@ -906,14 +907,14 @@ The use of multiple baud rates on the bus could cause the device running at the 
 
 This will not cause problems when commanding devices individually to change to a higher baud rate if you do not send any commands at the new higher baud rate until all devices have changed to it, because it is not possible for any other data sent at a lower baud rate to appear as an 0x55(which contains the maximum number of transitions) at a higher rate if the higher rate is at least twice the lower rate.
 
-This will also not cause any problems commanding a device to change to the next lower baud rate as long as you wait for at least 3*the byte time of the slowest rate, or 10ms, whichever is higher, as the baud rate set command is 8 bytes long, and 8 bytes will appear as at most 4 bytes at any lower baud rate that is less than half the rate. When the acknowledgememt arrives, it will appear as at most 1 additional byte. Therefore the slave at the lower baud rate will see at most 6 bytes, which is not enough for a valid long packet, and therefore will be seen as 5
+This will also not cause any problems commanding a device to change to the next lower baud rate as long as you wait for at least 3*one byte time at the slowest rate, or 10ms, whichever is higher, as the baud rate set command is 8 bytes long, and 8 bytes will appear as at most 4 bytes at any lower baud rate that is less than half the higher rate. When the acknowledgememt arrives, it will appear as at most 1 additional byte. Therefore the slave at the lower baud rate will see at most 5 bytes, which is not enough for a valid long packet, and therefore will be seen as random line noise and ignored.
 
 ==== Acknowledgment ====
 The use of a one-byte acknowledgment sequence creates the problem that random line noise could coincidentally contain the ACK character and coincidentally appear within the timeout just after the master sends a Write Request, causing the master to think the command was successful even if it was not. Even though the chances of this occurring are low, very important write operations like bootloaders should use some form of readback validation rather than depending on the built in acknowledgment features.
 
 
 ===== Modbus Compatibility =====
-The use of modbus devices on the same bus is possible if 0x00, 0x55, ASCII ACK, and ASCII zero through uppercase F are not used as modbus addresses. However, modbus transmissions may create similar situations described in //Reliability Concerns:Multiple Baud Rates.//
+The use of modbus devices on the same bus is possible if 0x00, 0x55, ASCII ACK, and ASCII zero through uppercase F are not used as modbus addresses. However, modbus transmissions may create similar situations as described in //Reliability Concerns:Multiple Baud Rates.//
 
 
 ===== Labeling =====

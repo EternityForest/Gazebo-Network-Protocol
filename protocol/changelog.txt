@@ -5,6 +5,10 @@ Creation-Date: 2013-03-06T02:08:53-08:00
 ====== changelog ======
 Created Wednesday 06 March 2013
 
+===== Version 0.8.7 =====
+Major change:
+Scope of protocol no longer includes power or connectors but only a sugesstion that devices take 7-30V.
+Added new sectio predefined group classes.
 
 ===== Version 0.71.6 =====
 Changed pinout to better match traditional rj11 uses, after observing the fact that a pin to pin short is unlikely, 30V is usually safe to touch, and 60V protected trancievers are cheap. Pinout and connector still subject to change after further testing.

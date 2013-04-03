@@ -2,12 +2,12 @@
 <HTML>
 <HEAD>
 	<META HTTP-EQUIV="CONTENT-TYPE" CONTENT="text/html; charset=windows-1252">
-	<TITLE>Gazebo Protocol Version 0.71.6</TITLE>
+	<TITLE>Gazebo Protocol Version 0.8.7</TITLE>
 	<META NAME="GENERATOR" CONTENT="OpenOffice.org 3.3  (Win32)">
 	<META NAME="AUTHOR" CONTENT="Daniel Black">
 	<META NAME="CREATED" CONTENT="20130306;1423267">
 	<META NAME="CHANGEDBY" CONTENT="Daniel Black">
-	<META NAME="CHANGED" CONTENT="20130322;10275154">
+	<META NAME="CHANGED" CONTENT="20130402;22511165">
 	<STYLE TYPE="text/css">
 	<!--
 		@page { margin: 0.79in }
@@ -42,66 +42,68 @@
 </HEAD>
 <BODY LANG="en-US" DIR="LTR">
 <DIV TYPE=HEADER>
-	<P ALIGN=LEFT STYLE="margin-bottom: 0.2in; page-break-after: auto"><SDFIELD TYPE=DOCINFO SUBTYPE=TITLE>Gazebo Protocol Version 0.71.6</SDFIELD>
+	<P ALIGN=LEFT STYLE="margin-bottom: 0.2in; page-break-after: auto"><SDFIELD TYPE=DOCINFO SUBTYPE=TITLE>Gazebo Protocol Version 0.8.7</SDFIELD>
 	<FONT FACE="Linux Libertine">by </FONT><FONT FACE="Linux Libertine"><SDFIELD TYPE=DOCINFO SUBTYPE=CREATE FORMAT=AUTHOR>Daniel Black</SDFIELD></FONT><FONT FACE="Cardinal">	</FONT>	Page
 	<SDFIELD TYPE=PAGE SUBTYPE=RANDOM FORMAT=PAGE>35</SDFIELD> of <SDFIELD TYPE=DOCSTAT SUBTYPE=PAGE FORMAT=PAGE>35</SDFIELD></P>
 </DIV>
 <H1 CLASS="western">Gazebo Protocol Specification</H1>
+<P CLASS="western"><BR><BR>
+</P>
 <P ALIGN=CENTER STYLE="margin-bottom: 0in; page-break-after: auto"><FONT FACE="Courier New, monospace"><FONT SIZE=2>&copy;
- 2013 Daniel Black.<BR>Version 0.71.6<BR>This work is licensed under
-a Creative Commons Attribution 3.0 Unported License.</FONT></FONT></P>
+ 2013 Daniel Black.<BR>Version 0.8.7<BR>This work is licensed under a
+Creative Commons Attribution 3.0 Unported License.<BR>This protocol
+was not designed for safety of life or mission critical functions.
+USE ENTIRELY AT YOUR OWN RISK.</FONT></FONT></P>
 <H2 CLASS="western">Introduction and Statement of Purpose</H2>
-<P CLASS="nontechnical-western">In many electronics applications
-there is a need for devices to communicate with each other. Often
-this is accomplished via a proprietary application layer running on a
+<P CLASS="western">In many electronics applications there is a need
+for devices to communicate with each other. Often this is
+accomplished via a proprietary application layer running on a
 semi-standard link layer. Often much manual setup is required, e.g.
 entering device addresses, writing custom drivers, etc. Another
 problem is that devices are often incompatible with each other and
 cannot share a physical layer, or require certain physical data lines
 to be exclusive to one device.</P>
-<P CLASS="nontechnical-western">Gazebo aims to correct these problems
-by defining a protocol that runs on common, existing physical layers,
-does not require the purchase of any developer license or unique
-codes, allows device to share a common bus, allows devices to be
-discovered with manual addressing, and allows devices to be
-self-documenting.</P>
-<P CLASS="nontechnical-western">Gazebo does not require custom
-hardware nor does it require excessive CPU resources. It runs over
-common RS485, USB,or TTL interfaces and the software is freely
-available. Gazebo was designed not to require devices to have any
-user interface(DIP switch, etc) at all, an important concern for
-small sensors and the like.</P>
-<P CLASS="nontechnical-western">Gazebo has native support for things
-like units of measure, data types (Including compound data types)
-remote function calls, nonvolatile configurations, and defines ways
-to ask questions about devices. Without human intervention the master
-can enumerate the devices on the bus, discover their capabilities,
-and issue commands.</P>
-<P CLASS="nontechnical-western">Gazebo is general purpose and is not
-specific to any industry. It was designed to allow devices to expose
-very generic functionality in a uniform way. Gazebo is not limited to
-any predefined list of device types.</P>
-<P CLASS="nontechnical-western">The core concept in Gazebo is the
-Parameter. A parameter is a variable that a device exposes to the
-network. Parameters may support read and write operations, and every
-parameter has associated metadata that may be requested from the
-device.</P>
-<P CLASS="nontechnical-western">Parameters are not limited to simple
-variables, as both writes and reads may have side effects, and read
-requests may carry arguments, making them equivalent to function
-calls. Gazebo defines a mechanism for asking if a read or write will
-have side effects.</P>
-<P CLASS="nontechnical-western">The concept of Objects is supported
-in a lightweight manner through Grouping. Parameters may be grouped
+<P CLASS="western">Gazebo aims to correct these problems by defining
+a protocol that runs on common, existing physical layers, does not
+require the purchase of any developer license or unique codes, allows
+device to share a common bus, allows devices to be discovered with
+manual addressing, and allows devices to be self-documenting.</P>
+<P CLASS="western">Gazebo does not require custom hardware nor does
+it require excessive CPU resources. It runs over common RS485, USB,or
+TTL interfaces and the software is freely available. Gazebo was
+designed not to require devices to have any user interface(DIP
+switch,LCD,Buttons, etc) at all, an important concern for small
+sensors and the like.</P>
+<P CLASS="western">Gazebo has native support for things like units of
+measure, data types (Including compound data types) remote function
+calls, nonvolatile configurations, and defines ways to ask questions
+about devices. Without human intervention the master can enumerate
+the devices on the bus, discover their capabilities, and issue
+commands.</P>
+<P CLASS="western">Gazebo is general purpose and is not specific to
+any industry. It was designed to allow devices to expose very generic
+functionality in a uniform way. Gazebo is not limited to any
+predefined list of device types.</P>
+<P CLASS="western">The core concept in Gazebo is the Parameter. A
+parameter is a variable that a device exposes to the network.
+Parameters may support read and write operations, and every parameter
+has associated metadata that may be requested from the device.</P>
+<P CLASS="western">Parameters are not limited to simple variables, as
+both writes and reads may have side effects, and read requests may
+carry arguments, making them equivalent to function calls. Gazebo
+defines a mechanism for asking if a read or write will have side
+effects.</P>
+<P CLASS="western">The concept of Objects is supported in a
+lightweight manner through Grouping. Parameters may be grouped
 together, and every group is an instance of a group class. In effect
 this allows anyone to effectively extend the standard by publishing
 an API as a group class and giving that class a unique name.</P>
-<P CLASS="nontechnical-western">A side effect of this is that we can
-do away with .&quot;device classes&quot; and the like, because
-instead of looking for devices of a specific class, we can instead
-look for devices that implement a specific class.</P>
-<P CLASS="nontechnical-western">Gazebo specifies native support for
-Error responses. While Gazebo was not designed for mission-critical
+<P CLASS="western">A side effect of this is that we can do away with
+.&quot;device classes&quot; and the like, because instead of looking
+for devices of a specific class, we can instead look for devices that
+implement a specific class.</P>
+<P CLASS="western">Gazebo specifies native support for Error
+responses. While Gazebo was not designed for mission-critical
 systems, reliability was a large concern in the design of the
 protocol. Small timing errors in gazebo data will not affect
 operation, nor is it possible for a string of bytes from noise to
@@ -114,11 +116,11 @@ parameter, perform an operation on a nonexistent parameter, or
 perform an invalid operation will result in an error. In addition,
 application code may perform additional validation on the data and
 return a standard error packet if anything is amiss.</P>
-<P CLASS="nontechnical-western">For these reasons, it is believed
-that Gazebo is a viable protocol for use in the fields of lighting
-control, process automation for non-critical equipment,
-entertainment, device configuration, scientific monitoring, and
-general embedded communication.</P>
+<P CLASS="western">For these reasons, it is believed that Gazebo is a
+viable protocol for use in the fields of lighting control, process
+automation for non-critical equipment, entertainment, device
+configuration, scientific monitoring, and general embedded
+communication.</P>
 <DIV ID="Table of Contents1" DIR="LTR">
 	<DIV ID="Table of Contents1_Head" DIR="LTR">
 		<P ALIGN=LEFT STYLE="margin-top: 0.17in; page-break-after: avoid"><FONT FACE="Quivira, serif"><FONT SIZE=4 STYLE="font-size: 16pt"><B>Table
@@ -137,43 +139,45 @@ general embedded communication.</P>
 	<P STYLE="margin-left: 0.2in; margin-bottom: 0in; page-break-after: auto">
 	Packet Format	8</P>
 	<P STYLE="margin-left: 0.2in; margin-bottom: 0in; page-break-after: auto">
-	Timing and Delimiting rules	10</P>
+	Timing and Delimiting rules	9</P>
 	<P STYLE="margin-left: 0.2in; margin-bottom: 0in; page-break-after: auto">
-	Slave Properties	11</P>
+	Slave Properties	10</P>
 	<P STYLE="margin-left: 0.2in; margin-bottom: 0in; page-break-after: auto">
 	Addressing	11</P>
 	<P STYLE="margin-left: 0.2in; margin-bottom: 0in; page-break-after: auto">
-	Supported Baud Rates	12</P>
+	Supported Baud Rates	11</P>
 	<P STYLE="margin-left: 0.2in; margin-bottom: 0in; page-break-after: auto">
 	Valid Packet Types	12</P>
 	<P STYLE="margin-left: 0.2in; margin-bottom: 0in; page-break-after: auto">
-	Error Codes	18</P>
+	Error Codes	17</P>
 	<P STYLE="margin-left: 0.2in; margin-bottom: 0in; page-break-after: auto">
 	Slave Description String	19</P>
 	<P STYLE="margin-left: 0.2in; margin-bottom: 0in; page-break-after: auto">
-	Parameter Description String	21</P>
+	Parameter Description String	20</P>
 	<P STYLE="margin-left: 0.2in; margin-bottom: 0in; page-break-after: auto">
-	Data Types	25</P>
+	Data Types	24</P>
 	<P STYLE="margin-left: 0.2in; margin-bottom: 0in; page-break-after: auto">
-	Standard Information Broadcast Identifiers	27</P>
+	Standard Predefined Group Classes	27</P>
+	<P STYLE="margin-left: 0.2in; margin-bottom: 0in; page-break-after: auto">
+	Standard Information Broadcast Identifiers	28</P>
 	<P STYLE="margin-left: 0.2in; margin-bottom: 0in; page-break-after: auto">
 	Additional Attributes	30</P>
 	<P STYLE="margin-left: 0.2in; margin-bottom: 0in; page-break-after: auto">
-	Rate Format Strings	30</P>
+	Rate Format Strings	31</P>
 	<P STYLE="margin-left: 0.2in; margin-bottom: 0in; page-break-after: auto">
-	Naming of Interpretations	30</P>
+	Naming of Interpretations	31</P>
 	<P STYLE="margin-left: 0.2in; margin-bottom: 0in; page-break-after: auto">
-	Reliability Concerns	31</P>
+	Reliability Concerns	32</P>
 	<P STYLE="margin-left: 0.2in; margin-bottom: 0in; page-break-after: auto">
-	Modbus Compatibility	32</P>
+	Modbus Compatibility	33</P>
 	<P STYLE="margin-left: 0.2in; margin-bottom: 0in; page-break-after: auto">
-	Labeling	32</P>
+	Labeling	33</P>
 	<P STYLE="margin-left: 0.2in; margin-bottom: 0in; page-break-after: auto">
 	Naming Conventions	33</P>
 	<P STYLE="margin-left: 0.2in; margin-bottom: 0in; page-break-after: auto">
 	Device Documentation Conventions	33</P>
 	<P STYLE="margin-left: 0.2in; margin-bottom: 0in; page-break-after: auto">
-	Design Patterns and Solutions	33</P>
+	Design Patterns and Solutions	34</P>
 	<P STYLE="margin-left: 0.2in; margin-bottom: 0in; page-break-after: auto">
 	Glossary	35</P>
 </DIV>
@@ -386,43 +390,12 @@ is identical to talking to a RS485 Gazebo device through a serial
 adapter. The device should present itself as 8-N-1 Serial, and baud
 rate commands should be ignored as USB serial has no baud rate in the
 traditional sense.</P>
-<P CLASS="western">To avoid failure, any software that acts as a
-master on a computer that is no</P>
 <H3 CLASS="western">Gazebo-RS485</H3>
-<P CLASS="western">8-N-1 RS485 Idle high non-inverted data carried
-along with power using RJ-11 connectors with the pinout shown in the
-below table. The working voltage is 9-24V and all devices must handle
-a 30V continual over-voltage. Devices should remain functional at 30V
-but are not required to. All devices must hot plug to 24V through
-30uH+2Ohms and 300uH+20ohms without damage. Devices are not required
-to hot-plug to 30V. Devices should be designed to survive up to 37V
-applied to either RS485 data line.</P>
-<P CLASS="western">All devices supplying power must be designed in
-such a way that a short circuit will not cause a dangerous fault or
-permanent circuit damage. Devices supplying power must not create any
-dangerous condition when two or more are connected to the same bus.
-Devices supplying power should be clearly labeled as to their voltage
-and current, and should include a warning against hot plugging if
-they supply more than 30V.</P>
-<P CLASS="western">No device may draw more than 1A from the network
-no matter what the voltage, although the total loading is limited by
-voltage drop and cable ampacity.</P>
-<P CLASS="western">The network bus ground must remain isolated from
-any earth ground at all times.</P>
-<P CLASS="western">Devices requiring more than ~4W should have an
-external power connector, which <EM>should</EM> take a voltage in the
-range of 7-30V but may take any voltage. Where possible cables should
-be made using 22 Gauge copper stranded wire, twisted pair. Devices
-should use a transceiver with the slowest slew rate that will still
-support their highest baud rate. The RS485 bus should use failsafe
-pullups at one terminator.</P>
-<P CLASS="western">All &quot;crowbar&quot; type surge protection
-devices must not conduct at 30V as 30V should be considered a routine
-</P>
-<H4 CLASS="western">Pinout</H4>
-<P CLASS="western">The pin ordering of of the rj11(using common rj11
-numbering) is to be:</P>
-<P CLASS="western">5=GND<BR>4=A<BR>3=B<BR>2=PWR</P>
+<P CLASS="western">8-N-1 Serial data carried over RS485 voltage
+levels. For compatibility, Devices should accept any input power
+voltage between 7 and 30 volts but are not required to accept any
+particular voltage level. Connections, wire type, and power are left
+to the individual designer.</P>
 <H3 CLASS="western">Gazebo-TTL</H3>
 <P CLASS="western">8-N-1 Idle high non-inverted data carried over a
 shared TTL wire pulled high to 5V via no less than 1k via any
@@ -579,6 +552,8 @@ below 115.2k use only traditional values because the error introduced
 from the combination of a modern crystal and a low &quot;traditional&quot;
 rate is likely to be low due to the high divider value used relative
 to any rounding error.</P>
+<P CLASS="western">The rates also have the property that no two rates
+are separated by less than a factor of two.</P>
 <H2 CLASS="western">Valid Packet Types</H2>
 <P CLASS="western">In this section the packet types are listed by
 type code and sorted into two categories: Packets sent only by the
@@ -660,8 +635,6 @@ Parameter.<BR>Slave must respond with a Slave Acknowledge message, or
 with the appropriate error if the Parameter Number is out of range,
 the Data to be written is the wrong length or otherwise incorrect, or
 if any other error occurs..</P>
-<P CLASS="western"><BR><BR>
-</P>
 <H4 CLASS="western">12: Parameter Write Without Acknowledge</H4>
 <P CLASS="western">(Required for all <STRONG>relevant</STRONG> slaves
 to handle)</P>
@@ -724,6 +697,8 @@ addresses, return an error.</P>
 the specified group is 0, quit all groups.<BR>Slave must respond with
 a Slave Acknowledge message.<BR>If the slave is not a member of that
 group, return the acknowledge anyway.</P>
+<P CLASS="western"><BR><BR>
+</P>
 <H4 CLASS="western">22: Save Parameters to Nonvolatile Memory</H4>
 <P CLASS="western">(Only slaves with nonvolatile parameters must
 implement this)</P>
@@ -1115,7 +1090,27 @@ or 0 values.</P>
 <P CLASS="western">No data whatsoever. Used for read with
 arguments(function calls) used purely for side effects.<BR>The short
 packet 0x06(Acknowledgement) should be sent in response to a
-successful read from void parameter.</P>
+successful read from void parameter.<BR>void parameters may be
+writable(To allow unconfirmed procedure calls of 0 arguments)</P>
+<H2 CLASS="western">Standard Predefined Group Classes</H2>
+<H3 CLASS="western">BlockInterface</H3>
+<P CLASS="western">An interface to a block of volatile or nonvolatile
+memory.<BR>Must contain parameters playing the followin group roles:</P>
+<H4 CLASS="western">File</H4>
+<P CLASS="western">Must be a variable length array of uint8.<BR>A
+read from this parameter will return the N bytes after the head
+position and advance the head by N.<BR>A write of N btes to this
+parameter will write those bytes after the pointer and advance by N.</P>
+<P CLASS="western">If the memory can only be written in blocks, The
+parameter playing role File must contain the additional attribute
+BlockSize<BR>which must be the block size in bytes and byte 0 must be
+the first byte of a block.<BR>Cache must be flushed to flash when the
+head crosses any block boundary.</P>
+<P CLASS="western">Reading must have no other side effects beyond
+advancing the head.</P>
+<H4 CLASS="western">Position</H4>
+<P CLASS="western">Must be a uint16 or uint32. Represents the current
+head position.</P>
 <H2 CLASS="western">Standard Information Broadcast Identifiers</H2>
 <H3 CLASS="western">TIME</H3>
 <P CLASS="western">The current time in 64 bit format</P>
@@ -1263,13 +1258,14 @@ number of transitions) at a higher rate if the higher rate is at
 least twice the lower rate.</P>
 <P CLASS="western">This will also not cause any problems commanding a
 device to change to the next lower baud rate as long as you wait for
-at least 3*the byte time of the slowest rate, or 10ms, whichever is
+at least 3*one byte time at the slowest rate, or 10ms, whichever is
 higher, as the baud rate set command is 8 bytes long, and 8 bytes
 will appear as at most 4 bytes at any lower baud rate that is less
-than half the rate. When the acknowledgememt arrives, it will appear
-as at most 1 additional byte. Therefore the slave at the lower baud
-rate will see at most 6 bytes, which is not enough for a valid long
-packet, and therefore will be seen as 5</P>
+than half the higher rate. When the acknowledgememt arrives, it will
+appear as at most 1 additional byte. Therefore the slave at the lower
+baud rate will see at most 5 bytes, which is not enough for a valid
+long packet, and therefore will be seen as random line noise and
+ignored.</P>
 <H3 CLASS="western">Acknowledgment</H3>
 <P CLASS="western">The use of a one-byte acknowledgment sequence
 creates the problem that random line noise could coincidentally
@@ -1284,7 +1280,7 @@ features.</P>
 <P CLASS="western">The use of modbus devices on the same bus is
 possible if 0x00, 0x55, ASCII ACK, and ASCII zero through uppercase F
 are not used as modbus addresses. However, modbus transmissions may
-create similar situations described in <EM>Reliability
+create similar situations as described in <EM>Reliability
 Concerns:Multiple Baud Rates.</EM></P>
 <H2 CLASS="western">Labeling</H2>
 <P CLASS="western">Ports that are intended to act as masters can be
@@ -1386,13 +1382,15 @@ return a value<BR>be implemented as write operations to give the
 master the option of calling the procedure without waiting for
 acknowledgement.</P>
 <H2 CLASS="western">Glossary</H2>
-<P CLASS="western">Gazebo <STRONG>Parameter: A variable, function, or
-property exposed to the master by a slave device</STRONG></P>
+<P CLASS="western">Gazebo<SPAN STYLE="font-weight: normal">
+</SPAN><STRONG><SPAN STYLE="font-weight: normal">Parameter: A
+variable, function, or property exposed to the master by a slave
+device</SPAN></STRONG></P>
 <P CLASS="western">mUTF-8: Modified UTF-8. This variant allows
 compatibility with null terminated strings.</P>
 <P CLASS="western">8-N-1: Asynchronous serial with 8 data bits, 1
 start bit, and 1 stop bit.</P>
-<P CLASS="western"><BR><BR>
+<P CLASS="nontechnical-western"><BR><BR>
 </P>
 </BODY>
 </HTML>
