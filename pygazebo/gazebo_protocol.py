@@ -204,15 +204,17 @@ class Gazebo_Slave(object):
             
             if 0 in n.returndata:
                 break #The page with the nul is the last page
-        
+        #Split the slave descriptor because it is a CSV file
         sd = SlaveDescriptor.split(',')
         self.name = sd[SLAVE_DESCRIPTOR_SLAVE_NAME_INDEX]
         self.fwversion = sd[SLAVE_DESCRIPTOR_FIRMWARE_VERSION_INDEX]
-        #For each parameter the slave says it has, ask about it nd create the appropriate object
+        #For each parameter the slave says it has, ask about it and create the appropriate object
+        #We see how many parameters the slave from a field in the descriptor
         for i in range(int(sd[SLAVE_DESCRIPTOR_TOTAL_PARAMETERS_INDEX])):
             n = NetworkParameter()
             n.parentslave = self
             n.paramnumber = i
+            #Create and send a parameter info request
             g = GazeboPacket()
             g.type = PACKET_TYPE_PARAMETER_INFO_REQUEST
             g.address = self.address
@@ -222,9 +224,9 @@ class Gazebo_Slave(object):
             r.data = b; r.expect = 'gazebopacket'
             r.Send()
             pd = r.returndata.decode("utf-8")
-            
+            #Which is also a csv file
             pd = pd.split(',')
-
+            #set variables based on the csv
             n.flags = pd[PARAMETER_DESCRIPTOR_FLAGS_INDEX]
             n.type = pd[PARAMETER_DESCRIPTOR_TYPE_INDEX]
             n.interpretation = pd[PARAMETER_DESCRIPTOR_INTERPETATION_INDEX]
@@ -554,10 +556,12 @@ class NetworkParameter(object):
     
 
     def __init__(self):
-      self.LastUpdated = 0
       self.expires =0.1 #Default to read-idempotent parameters being cached for a tenth of a second
       self.internalbuffer = []
-      self.cachedvalue=0
+	  #We need to keep track of which ones are old so we can get rid of them
+      self._cache= collections.OrderedDict()
+      self.cachesize = 35
+
       
     def __call__(self, *args): #NetworkParameter is callable, and calling it is an alias for read.
         if 'r' in self.flags:
@@ -570,41 +574,60 @@ class NetworkParameter(object):
       
     def read(self, *args):
         """Returns the value of the parameter. Will use the cached value if possible."""
-        #Check if we can avoid making the request by just returning the cached value.
-        if not self.fresh():
-            g = GazeboPacket()
-            g.data = bytearray(struct.pack("<B",self.paramnumber))
+      
+        #This will hold the argument data we are sending, and also we use it to uniquely determine
+        #A set of argument values for cache lookup
+        argumentdata = bytearray(0)
+        
+        for i in args:
+            #Convert all of the arguments using the list of argument converters that the parameter
+            #instance has
             j = 0
-            for i in args:
-                #Convert all of the arguments using the list of argument converters that the parameter
-                #instance has
-                g.data.extend(self._argumentconverters[j].PythonToGazebo(i))
-                j = j + 1
-                
-            g.address = self.parentslave.address
-            g.type = PACKET_TYPE_PARAMETER_READ
-            d = g.toBytes()
-            #Make a new network request and send it
-            r = NetworkRequest(self.parentslave.manager, d, "gazebopacket")
-            temp = r.Send()
+            argumentdata.extend(self._argumentconverters[j].PythonToGazebo(i))
+            j = j + 1
             
+        #convert to immutable type so we can hah it for a dict key
+        argumentdata = bytes(argumentdata)
+        #Check if we can avoid making the request by just returning the cached value.
+        if  self.fresh(argumentdata): 
+            return self._cache[argumentdata][1]
+        
+        g = GazeboPacket()
+        g.data = bytearray(struct.pack("<B",self.paramnumber))
+        g.data.extend(argumentdata)
+        g.address = self.parentslave.address
+        g.type = PACKET_TYPE_PARAMETER_READ
+        d = g.toBytes()
+        #Make a new network request and send it
+        r = NetworkRequest(self.parentslave.manager, d, "gazebopacket")
+        temp = r.Send()
+        
+        
+        if r.fullpacket.type == 5:
+            raise ValueError('Slave says something went wrong, errordata:' + str(r.returndata))
             
+        #If we got a valid value back
+        if (not (temp == None)):
             if r.fullpacket.type == 5:
                 raise ValueError('Slave says something went wrong, errordata:' + str(r.returndata))
-                
-            #If we got a valid value back
-            if (not (temp == None)):
-                if r.fullpacket.type == 5:
-                    raise ValueError('Slave says something went wrong, errordata:' + str(r.returndata))
-                temp = self._datainterpreter.GazeboToPython(temp)
-                self.CachedValue = temp
-                self.LastUpdated = time.time()
-                return temp
-            else:
-                return None
-        #If the cached value was fresh
+            temp = self._datainterpreter.GazeboToPython(temp)
+            #Cache this value along with the time it was recieved
+            if not argumentdata in self._cache:
+                #If we have too many cache entries we delete the oldest
+                #The oldest in terms of creation not update is deleted
+                #So we only have to run this function if the cache is too long
+                #and we are creating a new entry
+                #Which should not be very common
+                if len(self._cache) > self.cachesize:
+                    self._cache.popitem(last=False)
+                    
+            self._cache[argumentdata] = (temp,time.time())
+            
+            return temp
         else:
-            return self.CachedValue
+                return None
+      
+           
             
     def write(self,*data):
         """Write data to a parameter. Data must be of a format that is compatibe with the devices expected type."""
@@ -647,20 +670,24 @@ class NetworkParameter(object):
         return True #always return true
         
     
-    def fresh(self):
+    def fresh(self,arguments):
         """Internal function used to determine if the cached value is still good."""
         #Not-Idempotent values are not cacheable, nor are read operations with side effects
         if (not 'i' in self.flags) or 's' in self.flags:
             return False
-        #Read with arguments values are not cacheable
-        if len(self.arguments):
-           return False
+
+        #If the parameter has never been read with this set of arguments before ever
+        if not arguments in self._cache:
+            return False
+            
         #If the variable has already expired
-        if (time.time() - self.LastUpdated) > self.expires:
+        cached = self._cache[arguments]
+        if (time.time() - cached[1]) > self.expires:
             return False
             
         #Early return pattern
         return True
+        
     def pinfo(self):
         print(self.info())
         
@@ -708,11 +735,11 @@ class NetworkParameter(object):
         if 'i' in self.flags:
             string += 'Reads are idempotent(two succesive reads will produce the same data absent external changes).\n'
         if 'I' in self.flags:
-            string += 'Writes are idempotent(writing the same data twite is equivalent to once)\n'
+            string += 'Writes are idempotent(writing the same data twice is equivalent to once)\n'
         if 'b' in self.flags:
-            string += 'This is an item-wise FIFO. Reads will return the oldest N items and likewise for writes\n'
+            string += 'This is an item-wise FIFO. Reads will return the oldest N items,\n   writes insert N items.\n'
         if 'B' in self.flags:
-            string += 'This is a message-wise FIFO. Reads will return the one(1) oldest item and likewise for writes.\n'
+            string += 'This is a message-wise FIFO. Reads will return the one(1) oldest item, /n   writes instert one item.\n'
         if 'n' in self.flags:
             string += 'This parameter can be saved to nonvolatile memory.\n'
         

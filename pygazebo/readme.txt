@@ -128,8 +128,7 @@ True
 
 ==== NetworkParameter.expires ====
 The time(in seconds) to keep an old value for. The pygazebo library will try to cache values if it can to avoid unnecessary traffic.
-Float values are allowed. Read with arguments parameters and parameters with non idempotent read operations will not be cached.
-Defaults to 100ms.
+Float values are allowed. parameters that have side effects to reading and parameters with non idempotent read operations will not be cached. Defaults to 100ms.
 
 ==== NetworkParameter.fresh() ====
 Returns true if the parameter has not expired
