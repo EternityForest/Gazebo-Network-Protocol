@@ -308,6 +308,7 @@ class NetworkManager(object):
         #All the actual network stuff is going to happen in a new thread
         t = threading.Thread(target = self.__HandleRequestQueue)
         t.start()
+        t.daemon = True
 
     def __del__(self):
         self.comport.close()
