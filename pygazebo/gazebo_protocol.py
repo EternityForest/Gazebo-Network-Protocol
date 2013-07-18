@@ -307,8 +307,8 @@ class NetworkManager(object):
         self.retrylimit = 16
         #All the actual network stuff is going to happen in a new thread
         t = threading.Thread(target = self.__HandleRequestQueue)
-        t.start()
         t.daemon = True
+        t.start()
 
     def __del__(self):
         self.comport.close()
@@ -966,7 +966,6 @@ class GazeboArrayofNumbersConverter(BaseGazeboDataConverter):
         #Flatten the list, than structify it and return it
         for i in self.RecursiveNestedListSerialize(data):
             t.extend(struct.pack(self._structformat,i))
-            
         return t
 
 class GazeboStringConverter(BaseGazeboDataConverter):
@@ -975,7 +974,7 @@ class GazeboStringConverter(BaseGazeboDataConverter):
     """
     
     def __init__(self,formatstring):
-       ...
+        pass
         
     def GazeboToPython(self, data):
         return data.decode('utf8')
